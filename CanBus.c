@@ -48,31 +48,33 @@ int main(void) {
     /* Init FSL debug console. */
     BOARD_InitDebugConsole();
 #endif
-    printf("Start\n\r");
+    printf("Receive Frame Setup\n\r");
     rxFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
     rxFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
-    rxFrame.id     = 0x7E8 << 18;
+    //rxFrame.id     = (0x7DF);
+    rxFrame.id     = (0x7E8<<18);
+    FLEXCAN_SetRxMbConfig(CAN0, 0x7FF<<18 , &rxFrame, true);
 
-   // GPIO_PinWrite(GPIOB, 2, 1);
+    printf("Transmit Frame Setup\n\r");
     txFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
     txFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
-    txFrame.id     = 0x7E8;
+    txFrame.id     = (0x7E8);
     txFrame.length = 8;
-    txFrame.dataWord0 = CAN_WORD0_DATA_BYTE_0(0x11) | CAN_WORD0_DATA_BYTE_1(0x22) | CAN_WORD0_DATA_BYTE_2(0x33) |
-            CAN_WORD0_DATA_BYTE_3(0x44);
-    txFrame.dataWord1 = CAN_WORD1_DATA_BYTE_4(0x55) | CAN_WORD1_DATA_BYTE_5(0x66) | CAN_WORD1_DATA_BYTE_6(0x77) |
-            CAN_WORD1_DATA_BYTE_7(0x88);
+
+    txFrame.dataWord0 = CAN_WORD0_DATA_BYTE_0(0x02) | CAN_WORD0_DATA_BYTE_1(0x01) | CAN_WORD0_DATA_BYTE_2(0x0D) |
+            CAN_WORD0_DATA_BYTE_3(0x55);
+    txFrame.dataWord1 = CAN_WORD1_DATA_BYTE_4(0x55) | CAN_WORD1_DATA_BYTE_5(0x55) | CAN_WORD1_DATA_BYTE_6(0x55) |
+            CAN_WORD1_DATA_BYTE_7(0x55);
+
     FLEXCAN_TransferSendBlocking(CAN0, 1, &txFrame);
+
     printf("Complete\n\r");
     printf("TX Frame ID: %x",txFrame.id);
-    printf("\n\rRX Frame ID: %x",rxFrame.id);
+    printf("\n\rRX Frame ID: %x \n\r",rxFrame.id);
 
     while(1){
     }
+
+
     return 0;
 }
-
-
-
-
-
