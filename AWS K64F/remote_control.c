@@ -87,21 +87,18 @@ static char pcUpdateBuffer[shadowBUFFER_LENGTH];
 static ShadowClientHandle_t xClientHandle;
 QueueHandle_t jsonDeltaQueue = NULL;
 
-/* Actual state of LED */
-uint16_t ledState       = 0;
-uint16_t parsedLedState = 0;
-
 #if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
 /* Actual state of accelerometer */
 uint16_t accState       = 0;
+uint16_t rpmState       = 0;
+uint16_t mafState       = 0;
+uint16_t loadState       = 0;
+uint16_t osState       = 0;
 uint16_t parsedAccState = 0;
-#endif
-
-/* Has the board RGB LED */
-#if defined HAS_RGB_LED
-bool g_hasRgbLed = true;
-#else
-bool g_hasRgbLed = false;
+uint16_t parsedrpmState = 0;
+uint16_t parsedmafState = 0;
+uint16_t parsedloadState = 0;
+uint16_t parsedosState = 0;
 #endif
 
 /* Accelerometer and magnetometer */
@@ -116,18 +113,11 @@ extern uint8_t g_accelDataScale;
 extern uint8_t g_accelResolution;
 #endif
 
-extern void turnOnLed(uint8_t id);
-extern void turnOffLed(uint8_t id);
-
-extern const char *ledName[];
-extern uint8_t ledCount;
-extern char ledColors[];
-
 /*******************************************************************************
  * Code
  ******************************************************************************/
 
-#if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
+
 /*!
  * @brief Read accelerometer sensor value
  */
@@ -182,6 +172,9 @@ int buildJsonAccel()
     int ret = 0;
     ret     = snprintf(pcUpdateBuffer, shadowBUFFER_LENGTH,
     		   "{\"state\":{"
+    		   "\"desired\":{"
+			   "\"accelUpdate\":null"
+			   "},"
 			   "\"reported\":%s},"
 			   "\"clientToken\": \"token-%d\""
 			   "}",
@@ -196,7 +189,122 @@ int buildJsonAccel()
         return ret;
     }
 }
-#endif
+
+/* Build JSON document with reported state of the "RPM" */
+int buildJsonRPM()
+{
+	uint32_t rpm = 1543;
+    char tmpBufRPM[128] = {0};
+
+    sprintf(tmpBufRPM,  "{\"rpm\":{\"rpm\":%d}}", rpm);
+
+    int ret = 0;
+    ret     = snprintf(pcUpdateBuffer, shadowBUFFER_LENGTH,
+    		   "{\"state\":{"
+    		   "\"desired\":{"
+			   "\"rpmUpdate\":null"
+			   "},"
+			   "\"reported\":%s},"
+			   "\"clientToken\": \"token-%d\""
+			   "}",
+               tmpBufRPM, (int)xTaskGetTickCount());
+
+    if (ret >= shadowBUFFER_LENGTH || ret < 0)
+    {
+        return -1;
+    }
+    else
+    {
+        return ret;
+    }
+}
+
+/* Build JSON document with reported state of the "MAF" */
+int buildJsonMAF()
+{
+	uint8_t maf = 7;
+    char tmpBufMAF[128] = {0};
+
+    sprintf(tmpBufMAF,  "{\"maf\":{\"maf\":%d}}", maf);
+
+    int ret = 0;
+    ret     = snprintf(pcUpdateBuffer, shadowBUFFER_LENGTH,
+    		   "{\"state\":{"
+    		   "\"desired\":{"
+			   "\"mafUpdate\":null"
+			   "},"
+			   "\"reported\":%s},"
+			   "\"clientToken\": \"token-%d\""
+			   "}",
+               tmpBufMAF, (int)xTaskGetTickCount());
+
+    if (ret >= shadowBUFFER_LENGTH || ret < 0)
+    {
+        return -1;
+    }
+    else
+    {
+        return ret;
+    }
+}
+
+/* Build JSON document with reported state of the "Engine Load" */
+int buildJsonLOAD()
+{
+	uint8_t load = 45;
+    char tmpBufLOAD[128] = {0};
+
+    sprintf(tmpBufLOAD,  "{\"load\":{\"load\":%d}}", load);
+
+    int ret = 0;
+    ret     = snprintf(pcUpdateBuffer, shadowBUFFER_LENGTH,
+    		   "{\"state\":{"
+    		   "\"desired\":{"
+			   "\"loadUpdate\":null"
+			   "},"
+			   "\"reported\":%s},"
+			   "\"clientToken\": \"token-%d\""
+			   "}",
+               tmpBufLOAD, (int)xTaskGetTickCount());
+
+    if (ret >= shadowBUFFER_LENGTH || ret < 0)
+    {
+        return -1;
+    }
+    else
+    {
+        return ret;
+    }
+}
+
+/* Build JSON document with reported state of the "Oxygen Sensor" */
+int buildJsonOS()
+{
+	uint8_t os = 3;
+    char tmpBufOS[128] = {0};
+
+    sprintf(tmpBufOS,  "{\"os\":{\"os\":%d}}", os);
+
+    int ret = 0;
+    ret     = snprintf(pcUpdateBuffer, shadowBUFFER_LENGTH,
+    		   "{\"state\":{"
+    		   "\"desired\":{"
+			   "\"osUpdate\":null"
+			   "},"
+			   "\"reported\":%s},"
+			   "\"clientToken\": \"token-%d\""
+			   "}",
+               tmpBufOS, (int)xTaskGetTickCount());
+
+    if (ret >= shadowBUFFER_LENGTH || ret < 0)
+    {
+        return -1;
+    }
+    else
+    {
+        return ret;
+    }
+}
 
 /* Called when there's a difference between "reported" and "desired" in Shadow document. */
 static BaseType_t prvDeltaCallback(void *pvUserData,
@@ -238,37 +346,22 @@ static uint32_t prvGenerateShadowJSON()
                     "{"
                     "\"state\":{"
                     "\"desired\":{"
-                    "\"LEDstate\":%d"
+                    "\"Accelstate\":%d"
                     "},"
                     "\"reported\":{"
-                    "\"LEDstate\":%d,"
-#if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
+                    "\"Accelstate\":%d,"
                     "\"accel\":{\"x\":0,\"y\":0,\"z\":0},"
-#endif
-                    "\"LEDinfo\":{"
-                    "\"isRgbLed\":%s,"
-                    "\"colors\":%s"
+    				"\"rpm\":{\"rpm\":0},"
+    				"\"maf\":{\"maf\":0},"
+    				"\"load\":{\"load\":0},"
+    				"\"os\":{\"os\":0},"
+                    "\"Accelinfo\":{"
                     "}"
                     "}"
                     "},"
                     "\"clientToken\": \"token-%d\""
                     "}",
-                    ledState, ledState, g_hasRgbLed ? "true" : "false", ledColors, (int)xTaskGetTickCount());
-}
-
-/* Reports current state to shadow */
-static uint32_t prvReportShadowJSON()
-{
-    return snprintf(pcUpdateBuffer, shadowBUFFER_LENGTH,
-                    "{"
-                    "\"state\":{"
-                    "\"reported\":{"
-                    "\"LEDstate\":%d"
-                    "}"
-                    "},"
-                    "\"clientToken\": \"token-%d\""
-                    "}",
-                    ledState, (int)xTaskGetTickCount());
+                    accState, accState, (int)xTaskGetTickCount());
 }
 
 int parseStringValue(char *val, char *json, jsmntok_t *token)
@@ -367,23 +460,47 @@ void processShadowDeltaJSON(char *json, uint32_t jsonLength)
         err = parseStringValue(key, json, &tokens[i++]);
         if (err == 0)
         {
-            if (strstr(key, "LEDstate"))
+            if (strstr(key, "accelUpdate"))
             {
-                /* found "LEDstate" keyword, parse value of next token */
-                err = parseUInt16Value(&parsedValue, json, &tokens[i]);
-                if (err == 0)
-                {
-                    parsedLedState = parsedValue;
-                }
-            }
-#if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
-            else if (strstr(key, "accelUpdate"))
-            {
-                /* found "updateAccel" keyword, parse value of next token */
+            	 /* found "updateAccel" keyword, parse value of next token */
                 err = parseUInt16Value(&parsedValue, json, &tokens[i]);
                 if (err == 0)
                 {
                     parsedAccState = parsedValue;
+                }
+            }
+#if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
+            else if (strstr(key, "rpmUpdate"))
+            {
+                /* found "updateRpm" keyword, parse value of next token */
+                err = parseUInt16Value(&parsedValue, json, &tokens[i]);
+                if (err == 0)
+                {
+                    parsedrpmState = parsedValue;
+                }
+            } else if (strstr(key, "mafUpdate"))
+            {
+                /* found "updateMaf" keyword, parse value of next token */
+                err = parseUInt16Value(&parsedValue, json, &tokens[i]);
+                if (err == 0)
+                {
+                    parsedmafState = parsedValue;
+                }
+            } else if (strstr(key, "loadUpdate"))
+            {
+                /* found "updateMaf" keyword, parse value of next token */
+                err = parseUInt16Value(&parsedValue, json, &tokens[i]);
+                if (err == 0)
+                {
+                    parsedloadState = parsedValue;
+                }
+            } else if (strstr(key, "osUpdate"))
+            {
+                /* found "updateMaf" keyword, parse value of next token */
+                err = parseUInt16Value(&parsedValue, json, &tokens[i]);
+                if (err == 0)
+                {
+                    parsedosState = parsedValue;
                 }
             }
 #endif
@@ -492,6 +609,7 @@ void prvShadowMainTask(void *pvParameters)
         vTaskDelete(NULL);
     }
 
+    printf("%s\n\r",pcUpdateBuffer);
     xOperationParams.pcData       = pcUpdateBuffer;
     xOperationParams.ulDataLength = prvGenerateShadowJSON();
     /* Keep subscriptions across multiple calls to SHADOW_Update. */
@@ -516,44 +634,12 @@ void prvShadowMainTask(void *pvParameters)
         {
             /* process item from queue */
             processShadowDeltaJSON(jsonDelta.pcDeltaDocument, jsonDelta.ulDocumentLength);
-            if (parsedLedState != ledState)
-            {
-                for (int i = 0; i < ledCount; i++)
-                {
-                    /* change from 0 to 1 */
-                    if (((ledState & (1 << i)) == 0) && ((parsedLedState & (1 << i)) != 0))
-                    {
-                        /* turn on led */
-                        configPRINTF(("Turn on %s\r\n", ledName[i]));
-                        turnOnLed(i);
-                    }
 
-                    /* change from 1 to 0 */
-                    if (((ledState & (1 << i)) != 0) && ((parsedLedState & (1 << i)) == 0))
-                    {
-                        /* turn off led */
-                        configPRINTF(("Turn off %s\r\n", ledName[i]));
-                        turnOffLed(i);
-                    }
-                }
-                ledState = parsedLedState;
 
-                /* update device shadow */
-                xOperationParams.ulDataLength = prvReportShadowJSON();
-                xReturn                       = SHADOW_Update(xClientHandle, &xOperationParams, shadowDemoTIMEOUT);
-                if (xReturn == eShadowSuccess)
-                {
-                    configPRINTF(("Successfully performed update.\r\n"));
-                }
-                else
-                {
-                    configPRINTF(("Update failed, returned %d.\r\n", xReturn));
-                }
-            }
-#if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
             if (parsedAccState == 1)
             {
                 configPRINTF(("Update accelerometer.\r\n"));
+                printf("%s\n\r", pcUpdateBuffer);
                 xOperationParams.ulDataLength = buildJsonAccel();
                 xReturn                       = SHADOW_Update(xClientHandle, &xOperationParams, shadowDemoTIMEOUT);
                 if (xReturn == eShadowSuccess)
@@ -565,8 +651,68 @@ void prvShadowMainTask(void *pvParameters)
                     configPRINTF(("Update failed, returned %d.\r\n", xReturn));
                 }
                 parsedAccState = 0;
-            }
-#endif
+            }else if (parsedrpmState == 1)
+            {
+                configPRINTF(("Update RPM Value.\r\n"));
+                printf("%s\n\r", pcUpdateBuffer);
+                xOperationParams.ulDataLength = buildJsonRPM();
+                xReturn                       = SHADOW_Update(xClientHandle, &xOperationParams, shadowDemoTIMEOUT);
+                if (xReturn == eShadowSuccess)
+                {
+                    configPRINTF(("Successfully performed update.\r\n"));
+                }
+                else
+                {
+                    configPRINTF(("Update failed, returned %d.\r\n", xReturn));
+                }
+                parsedrpmState = 0;
+           }else if (parsedmafState == 1)
+           {
+               configPRINTF(("Update MAF Value.\r\n"));
+               printf("%s\n\r", pcUpdateBuffer);
+               xOperationParams.ulDataLength = buildJsonMAF();
+               xReturn                       = SHADOW_Update(xClientHandle, &xOperationParams, shadowDemoTIMEOUT);
+               if (xReturn == eShadowSuccess)
+               {
+                   configPRINTF(("Successfully performed update.\r\n"));
+               }
+               else
+               {
+                   configPRINTF(("Update failed, returned %d.\r\n", xReturn));
+               }
+               parsedmafState = 0;
+          }else if (parsedloadState == 1)
+          {
+              configPRINTF(("Update Engine Load Value.\r\n"));
+              printf("%s\n\r", pcUpdateBuffer);
+              xOperationParams.ulDataLength = buildJsonLOAD();
+              xReturn                       = SHADOW_Update(xClientHandle, &xOperationParams, shadowDemoTIMEOUT);
+              if (xReturn == eShadowSuccess)
+              {
+                  configPRINTF(("Successfully performed update.\r\n"));
+              }
+              else
+              {
+                  configPRINTF(("Update failed, returned %d.\r\n", xReturn));
+              }
+              parsedloadState = 0;
+         }else if (parsedosState == 1)
+         {
+             configPRINTF(("Update Oxygen Sensor Value.\r\n"));
+             printf("%s\n\r", pcUpdateBuffer);
+             xOperationParams.ulDataLength = buildJsonOS();
+             xReturn                       = SHADOW_Update(xClientHandle, &xOperationParams, shadowDemoTIMEOUT);
+             if (xReturn == eShadowSuccess)
+             {
+                 configPRINTF(("Successfully performed update.\r\n"));
+             }
+             else
+             {
+                 configPRINTF(("Update failed, returned %d.\r\n", xReturn));
+             }
+             parsedosState = 0;
+        }
+
             /* return mqtt buffer */
             xReturn = SHADOW_ReturnMQTTBuffer(xClientHandle, jsonDelta.xBuffer);
             if (xReturn != eShadowSuccess)
@@ -577,7 +723,7 @@ void prvShadowMainTask(void *pvParameters)
     }
 }
 
-void vStartLedDemoTask(void)
+void vStartTask(void)
 {
     (void)xTaskCreate(prvShadowMainTask, "AWS-RemoteCtrl", DEMO_REMOTE_CONTROL_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY,
                       NULL);

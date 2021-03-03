@@ -101,12 +101,6 @@ const WIFINetworkParams_t pxNetworkParams = {
     .ucPasswordLength = sizeof(clientcredentialWIFI_PASSWORD) - 1,
     .xSecurity        = clientcredentialWIFI_SECURITY,
 };
-/* Count of LED which can be controlled */
-uint8_t ledCount = 3;
-/* Array of LED names */
-char *ledName[] = {"LED Red", "LED Green", "LED Blue"};
-/* Array of LED colors in JSON */
-char ledColors[] = "[\"red\", \"green\", \"blue\"]";
 
 /*******************************************************************************
  * Code
@@ -148,48 +142,6 @@ int initNetwork(void)
 
     return INIT_SUCCESS;
 }
-void turnOnLed(uint8_t id)
-{
-    if (id == 0)
-    {
-        LED_RED_ON();
-    }
-    else if (id == 1)
-    {
-        LED_GREEN_ON();
-    }
-    else if (id == 2)
-    {
-        LED_BLUE_ON();
-    }
-}
-
-void turnOffLed(uint8_t id)
-{
-    if (id == 0)
-    {
-        LED_RED_OFF();
-    }
-    else if (id == 1)
-    {
-        LED_GREEN_OFF();
-    }
-    else if (id == 2)
-    {
-        LED_BLUE_OFF();
-    }
-}
-
-/*!
- * @brief Initialize pins for control RGB LED
- */
-void BOARD_InitLEDs()
-{
-    LED_RED_INIT(LOGIC_LED_OFF);
-    LED_GREEN_INIT(LOGIC_LED_OFF);
-    LED_BLUE_INIT(LOGIC_LED_OFF);
-}
-
 
 static void i2c_release_bus_delay(void)
 {
@@ -330,7 +282,7 @@ void main_task(void *pvParameters)
         }
         else
         {
-            vStartLedDemoTask();
+            vStartTask();
         }
     }
 
@@ -346,7 +298,7 @@ int main(void)
     BOARD_I2C_ReleaseBus();
     BOARD_I2C_ConfigurePins();
 
-    BOARD_InitLEDs();
+   // BOARD_InitLEDs();
     CRYPTO_InitHardware();
 
 #if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
