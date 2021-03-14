@@ -49,17 +49,20 @@ public class MainActivity extends AppCompatActivity {
     /** GUI items */
     ImageButton bAccelRefresh;
     ImageButton bRPMRefresh;
+    ImageButton bSpeedRefresh;
     ImageButton bMAFRefresh;
     ImageButton bLoadRefresh;
     ImageButton b02Refresh;
     TextView tvConnectionStatus;
     TextView tvAccelTimestamp;
     TextView tvRPMTimestamp;
+    TextView tvSpeedTimestamp;
     TextView tvMAFTimestamp;
     TextView tvLoadTimestamp;
     TextView tv02Timestamp;
     TextView tvAccelValues;
     TextView tvRPMValues;
+    TextView tvSpeedValues;
     TextView tvMAFValues;
     TextView tvLoadValues;
     TextView tv02Values;
@@ -67,11 +70,13 @@ public class MainActivity extends AppCompatActivity {
     ProgressBar progressBarAccel;
     ProgressBar progressBarMAF;
     ProgressBar progressBarRPM;
+    ProgressBar progressBarSpeed;
     ProgressBar progressBarLoad;
     ProgressBar progressBar02;
     CardView cardViewAccel;
     CardView cardViewMAF;
     CardView cardViewRPM;
+    CardView cardViewSpeed;
     CardView cardViewLoad;
     CardView cardView02;
 
@@ -102,28 +107,33 @@ public class MainActivity extends AppCompatActivity {
         // GUI items instances
         bAccelRefresh = (ImageButton) findViewById(R.id.bAccelRefresh);
         bRPMRefresh = (ImageButton) findViewById(R.id.bRPMRefresh);
+        bSpeedRefresh = (ImageButton) findViewById(R.id.bSpeedRefresh);
         bMAFRefresh = (ImageButton) findViewById(R.id.bMAFRefresh);
         bLoadRefresh = (ImageButton) findViewById(R.id.bLoadRefresh);
         b02Refresh = (ImageButton) findViewById(R.id.b02Refresh);
         tvConnectionStatus = (TextView) findViewById(R.id.tvConnectionStatus);
         tvAccelTimestamp = (TextView) findViewById(R.id.tvAccelTimestamp);
         tvRPMTimestamp = (TextView) findViewById(R.id.tvRPMTimestamp);
+        tvSpeedTimestamp = (TextView) findViewById(R.id.tvSpeedTimestamp);
         tvMAFTimestamp = (TextView) findViewById(R.id.tvMAFTimestamp);
         tvLoadTimestamp = (TextView) findViewById(R.id.tvLoadTimestamp);
         tv02Timestamp = (TextView) findViewById(R.id.tv02Timestamp);
         tvAccelValues = (TextView) findViewById(R.id.tvAccelValues);
         tvRPMValues = (TextView) findViewById(R.id.tvRPMValues);
+        tvSpeedValues = (TextView) findViewById(R.id.tvSpeedValues);
         tvMAFValues = (TextView) findViewById(R.id.tvMAFValues);
         tvLoadValues = (TextView) findViewById(R.id.tvLoadValues);
         tv02Values = (TextView) findViewById(R.id.tv02Values);
         progressBarConnection = (ProgressBar) findViewById(R.id.progressBarConnection);
         progressBarAccel = (ProgressBar) findViewById(R.id.progressBarAccel);
         progressBarRPM = (ProgressBar) findViewById(R.id.progressBarRPM);
+        progressBarSpeed = (ProgressBar) findViewById(R.id.progressBarSpeed);
         progressBarMAF = (ProgressBar) findViewById(R.id.progressBarMAF);
         progressBarLoad = (ProgressBar) findViewById(R.id.progressBarLoad);
         progressBar02 = (ProgressBar) findViewById(R.id.progressBar02);
         cardViewAccel = (CardView) findViewById(R.id.card_view_accel);
         cardViewRPM = (CardView) findViewById(R.id.card_view_RPM);
+        cardViewSpeed = (CardView) findViewById(R.id.card_view_Speed);
         cardViewMAF = (CardView) findViewById(R.id.card_view_MAF);
         cardViewLoad = (CardView) findViewById(R.id.card_view_Load);
         cardView02 = (CardView) findViewById(R.id.card_view_02);
@@ -149,6 +159,7 @@ public class MainActivity extends AppCompatActivity {
                     public void run() {
                         progressBarAccel.setVisibility(View.INVISIBLE);
                         progressBarRPM.setVisibility(View.INVISIBLE);
+                        progressBarSpeed.setVisibility(View.INVISIBLE);
                         progressBarMAF.setVisibility(View.INVISIBLE);
                         progressBarLoad.setVisibility(View.INVISIBLE);
                         progressBar02.setVisibility(View.INVISIBLE);
@@ -215,6 +226,7 @@ public class MainActivity extends AppCompatActivity {
                 // reported and metadata must not be sent along with desired shadow state
                 shadow.state.desired.accelUpdate = null;
                 shadow.state.desired.rpmUpdate = null;                                                  //RPM
+                shadow.state.desired.speedUpdate = null;                                                //Speed
                 shadow.state.desired.mafUpdate = null;                                                  //MAF
                 shadow.state.desired.loadUpdate = null;                                                 //Engine Load
                 shadow.state.desired.osUpdate = null;                                                 //Engine Load
@@ -297,6 +309,39 @@ public class MainActivity extends AppCompatActivity {
                 timeoutHandler.postDelayed(displayTimeoutToast, AwsConstants.TIMEOUT);
 
                 Log.d(Connection.LOG_TAG, "RPM update request was send.");
+            }
+        });
+
+        bRPMRefresh.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AwsShadow shadow = new AwsShadow();
+                shadow.state.desired.speedUpdate = 1;
+
+                // reported and metadata must not be sent along with desired shadow state
+                shadow.state.reported = null;
+                shadow.metadata = null;
+
+                // disable buttons
+                enableClickableGUIItems(false);
+
+                // create message json in format of device shadow
+                final String message = new Gson().toJson(shadow, AwsShadow.class);
+
+                // publish message
+                mqttConnection.publish(awsConstants.SHADOW_UPDATE, message);
+
+                // show progress bar and wait for certain time
+                // if no message from device has been received, display toast message
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        progressBarSpeed.setVisibility(View.VISIBLE);
+                    }
+                });
+                timeoutHandler.postDelayed(displayTimeoutToast, AwsConstants.TIMEOUT);
+
+                Log.d(Connection.LOG_TAG, "Speed update request was send.");
             }
         });
 
@@ -535,6 +580,28 @@ public class MainActivity extends AppCompatActivity {
                                                 });
                                             }
 
+                                            updateSpeedValuesAfterShadowUpdate(shadow);
+
+                                            // remove timeout callback
+                                            timeoutHandler.removeCallbacks(displayTimeoutToast);
+
+                                            // last known shadow state received
+                                            if (topic.equals(awsConstants.SHADOW_GET_ACCEPTED)) {
+                                                runOnUiThread(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        Toast.makeText(
+                                                                getApplicationContext(),
+                                                                "Last known device shadow state has been received.",
+                                                                Toast.LENGTH_LONG
+                                                        ).show();
+
+                                                        // hide if no data has been received
+                                                        cardViewSpeed.setVisibility(shadow.state.reported.rpm == null ? View.GONE : View.VISIBLE);
+                                                    }
+                                                });
+                                            }
+
                                             updateMAFValuesAfterShadowUpdate(shadow);
 
                                             // remove timeout callback
@@ -718,6 +785,7 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 bAccelRefresh.setEnabled(enable);
                 bRPMRefresh.setEnabled(enable);
+                bSpeedRefresh.setEnabled(enable);
                 bMAFRefresh.setEnabled(enable);
                 bLoadRefresh.setEnabled(enable);
                 b02Refresh.setEnabled(enable);
@@ -776,6 +844,35 @@ public class MainActivity extends AppCompatActivity {
 
                         // hide progress bar
                         progressBarRPM.setVisibility(View.INVISIBLE);
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * Update speed values after receiving shadow update from subscription.
+     * @param shadow AWS shadow
+     */
+    private void updateSpeedValuesAfterShadowUpdate(final AwsShadow shadow) {
+        if (shadow.state.reported != null){
+            if (shadow.state.reported.speed != null) {
+                final AwsShadow.State.Reported.Speed speed = shadow.state.reported.speed;
+
+                runOnUiThread(new Runnable() {
+                    @SuppressLint("DefaultLocale")
+                    @Override
+                    public void run() {
+                        cardViewSpeed.setVisibility(View.VISIBLE);
+
+                        // update speed values
+                        tvSpeedValues.setText(String.format("Vehicle Speed: %d", speed.speed));
+
+                        // update timestamp
+                        tvSpeedTimestamp.setText(formatUnixTimeStamp(shadow.metadata.reported.speed.speed.timestamp));
+
+                        // hide progress bar
+                        progressBarSpeed.setVisibility(View.INVISIBLE);
                     }
                 });
             }

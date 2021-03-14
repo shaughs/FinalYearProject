@@ -55,6 +55,7 @@ public class AwsShadow {
             /** Accelerometer update */
             public Integer accelUpdate;
             public Integer rpmUpdate;
+            public Integer speedUpdate;
             public Integer mafUpdate;
             public Integer loadUpdate;
             public Integer osUpdate;
@@ -78,6 +79,13 @@ public class AwsShadow {
 
             public class RPM {
                 public Integer rpm;
+            }
+
+            /** Speed */
+            public Speed speed;
+
+            public class Speed {
+                public Integer speed;
             }
 
             /** MAF */
@@ -112,12 +120,17 @@ public class AwsShadow {
 
             public Accel accel;
             public RPM rpm;
+            public Speed speed;
             public MAF maf;
             public LOAD load;
             public OS os;
 
             public class RPM {
                 public Timestamp rpm;
+            }
+
+            public class Speed {
+                public Timestamp speed;
             }
 
             public class MAF {

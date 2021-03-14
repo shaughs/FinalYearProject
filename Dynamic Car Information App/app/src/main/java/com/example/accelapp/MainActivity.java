@@ -1,6 +1,7 @@
 
 package com.example.accelapp;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -47,12 +48,37 @@ public class MainActivity extends AppCompatActivity {
 
     /** GUI items */
     ImageButton bAccelRefresh;
+    ImageButton bRPMRefresh;
+    ImageButton bSpeedRefresh;
+    ImageButton bMAFRefresh;
+    ImageButton bLoadRefresh;
+    ImageButton b02Refresh;
     TextView tvConnectionStatus;
     TextView tvAccelTimestamp;
+    TextView tvRPMTimestamp;
+    TextView tvSpeedTimestamp;
+    TextView tvMAFTimestamp;
+    TextView tvLoadTimestamp;
+    TextView tv02Timestamp;
     TextView tvAccelValues;
+    TextView tvRPMValues;
+    TextView tvSpeedValues;
+    TextView tvMAFValues;
+    TextView tvLoadValues;
+    TextView tv02Values;
     ProgressBar progressBarConnection;
     ProgressBar progressBarAccel;
+    ProgressBar progressBarMAF;
+    ProgressBar progressBarRPM;
+    ProgressBar progressBarSpeed;
+    ProgressBar progressBarLoad;
+    ProgressBar progressBar02;
     CardView cardViewAccel;
+    CardView cardViewMAF;
+    CardView cardViewRPM;
+    CardView cardViewSpeed;
+    CardView cardViewLoad;
+    CardView cardView02;
 
     /** variables */
     Handler timeoutHandler;
@@ -78,19 +104,39 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // initialize toolbar
-       // Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        //setSupportActionBar(toolbar);
-
         // GUI items instances
         bAccelRefresh = (ImageButton) findViewById(R.id.bAccelRefresh);
+        bRPMRefresh = (ImageButton) findViewById(R.id.bRPMRefresh);
+        bSpeedRefresh = (ImageButton) findViewById(R.id.bSpeedRefresh);
+        bMAFRefresh = (ImageButton) findViewById(R.id.bMAFRefresh);
+        bLoadRefresh = (ImageButton) findViewById(R.id.bLoadRefresh);
+        b02Refresh = (ImageButton) findViewById(R.id.b02Refresh);
         tvConnectionStatus = (TextView) findViewById(R.id.tvConnectionStatus);
         tvAccelTimestamp = (TextView) findViewById(R.id.tvAccelTimestamp);
+        tvRPMTimestamp = (TextView) findViewById(R.id.tvRPMTimestamp);
+        tvSpeedTimestamp = (TextView) findViewById(R.id.tvSpeedTimestamp);
+        tvMAFTimestamp = (TextView) findViewById(R.id.tvMAFTimestamp);
+        tvLoadTimestamp = (TextView) findViewById(R.id.tvLoadTimestamp);
+        tv02Timestamp = (TextView) findViewById(R.id.tv02Timestamp);
         tvAccelValues = (TextView) findViewById(R.id.tvAccelValues);
+        tvRPMValues = (TextView) findViewById(R.id.tvRPMValues);
+        tvSpeedValues = (TextView) findViewById(R.id.tvSpeedValues);
+        tvMAFValues = (TextView) findViewById(R.id.tvMAFValues);
+        tvLoadValues = (TextView) findViewById(R.id.tvLoadValues);
+        tv02Values = (TextView) findViewById(R.id.tv02Values);
         progressBarConnection = (ProgressBar) findViewById(R.id.progressBarConnection);
         progressBarAccel = (ProgressBar) findViewById(R.id.progressBarAccel);
+        progressBarRPM = (ProgressBar) findViewById(R.id.progressBarRPM);
+        progressBarSpeed = (ProgressBar) findViewById(R.id.progressBarSpeed);
+        progressBarMAF = (ProgressBar) findViewById(R.id.progressBarMAF);
+        progressBarLoad = (ProgressBar) findViewById(R.id.progressBarLoad);
+        progressBar02 = (ProgressBar) findViewById(R.id.progressBar02);
         cardViewAccel = (CardView) findViewById(R.id.card_view_accel);
-
+        cardViewRPM = (CardView) findViewById(R.id.card_view_RPM);
+        cardViewSpeed = (CardView) findViewById(R.id.card_view_Speed);
+        cardViewMAF = (CardView) findViewById(R.id.card_view_MAF);
+        cardViewLoad = (CardView) findViewById(R.id.card_view_Load);
+        cardView02 = (CardView) findViewById(R.id.card_view_02);
 
         // default variable values
         mqttConnected = false;
@@ -112,6 +158,11 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         progressBarAccel.setVisibility(View.INVISIBLE);
+                        progressBarRPM.setVisibility(View.INVISIBLE);
+                        progressBarSpeed.setVisibility(View.INVISIBLE);
+                        progressBarMAF.setVisibility(View.INVISIBLE);
+                        progressBarLoad.setVisibility(View.INVISIBLE);
+                        progressBar02.setVisibility(View.INVISIBLE);
                     }
                 });
 
@@ -174,6 +225,11 @@ public class MainActivity extends AppCompatActivity {
 
                 // reported and metadata must not be sent along with desired shadow state
                 shadow.state.desired.accelUpdate = null;
+                shadow.state.desired.rpmUpdate = null;                                                  //RPM
+                shadow.state.desired.speedUpdate = null;                                                //Speed
+                shadow.state.desired.mafUpdate = null;                                                  //MAF
+                shadow.state.desired.loadUpdate = null;                                                 //Engine Load
+                shadow.state.desired.osUpdate = null;                                                 //Engine Load
                 shadow.state.reported = null;
                 shadow.metadata = null;
 
@@ -186,14 +242,6 @@ public class MainActivity extends AppCompatActivity {
                 // publish message
                 mqttConnection.publish(awsConstants.SHADOW_UPDATE, message);
 
-                // show progress bar and wait for certain time
-                // if no message from device has been received, display toast message
-               // runOnUiThread(new Runnable() {
-               //     @Override
-               //     public void run() {
-                //        progressBarRgbLed.setVisibility(View.VISIBLE);
-               //     }
-            //    });
                 timeoutHandler.postDelayed(displayTimeoutToast, AwsConstants.TIMEOUT);
             }
         };
@@ -202,7 +250,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 AwsShadow shadow = new AwsShadow();
-               // shadow.state.desired.LEDstate = null;
                 shadow.state.desired.accelUpdate = 1;
 
                 // reported and metadata must not be sent along with desired shadow state
@@ -231,6 +278,172 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(Connection.LOG_TAG, "Accelerometer update request was send.");
             }
         });
+
+        bRPMRefresh.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AwsShadow shadow = new AwsShadow();
+                shadow.state.desired.rpmUpdate = 1;
+
+                // reported and metadata must not be sent along with desired shadow state
+                shadow.state.reported = null;
+                shadow.metadata = null;
+
+                // disable buttons
+                enableClickableGUIItems(false);
+
+                // create message json in format of device shadow
+                final String message = new Gson().toJson(shadow, AwsShadow.class);
+
+                // publish message
+                mqttConnection.publish(awsConstants.SHADOW_UPDATE, message);
+
+                // show progress bar and wait for certain time
+                // if no message from device has been received, display toast message
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        progressBarRPM.setVisibility(View.VISIBLE);
+                    }
+                });
+                timeoutHandler.postDelayed(displayTimeoutToast, AwsConstants.TIMEOUT);
+
+                Log.d(Connection.LOG_TAG, "RPM update request was send.");
+            }
+        });
+
+        bRPMRefresh.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AwsShadow shadow = new AwsShadow();
+                shadow.state.desired.speedUpdate = 1;
+
+                // reported and metadata must not be sent along with desired shadow state
+                shadow.state.reported = null;
+                shadow.metadata = null;
+
+                // disable buttons
+                enableClickableGUIItems(false);
+
+                // create message json in format of device shadow
+                final String message = new Gson().toJson(shadow, AwsShadow.class);
+
+                // publish message
+                mqttConnection.publish(awsConstants.SHADOW_UPDATE, message);
+
+                // show progress bar and wait for certain time
+                // if no message from device has been received, display toast message
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        progressBarSpeed.setVisibility(View.VISIBLE);
+                    }
+                });
+                timeoutHandler.postDelayed(displayTimeoutToast, AwsConstants.TIMEOUT);
+
+                Log.d(Connection.LOG_TAG, "Speed update request was send.");
+            }
+        });
+
+        bMAFRefresh.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AwsShadow shadow = new AwsShadow();
+                shadow.state.desired.mafUpdate = 1;
+
+                // reported and metadata must not be sent along with desired shadow state
+                shadow.state.reported = null;
+                shadow.metadata = null;
+
+                // disable buttons
+                enableClickableGUIItems(false);
+
+                // create message json in format of device shadow
+                final String message = new Gson().toJson(shadow, AwsShadow.class);
+
+                // publish message
+                mqttConnection.publish(awsConstants.SHADOW_UPDATE, message);
+
+                // show progress bar and wait for certain time
+                // if no message from device has been received, display toast message
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        progressBarMAF.setVisibility(View.VISIBLE);
+                    }
+                });
+                timeoutHandler.postDelayed(displayTimeoutToast, AwsConstants.TIMEOUT);
+
+                Log.d(Connection.LOG_TAG, "MAF update request was send.");
+            }
+        });
+
+        bLoadRefresh.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AwsShadow shadow = new AwsShadow();
+                shadow.state.desired.loadUpdate = 1;
+
+                // reported and metadata must not be sent along with desired shadow state
+                shadow.state.reported = null;
+                shadow.metadata = null;
+
+                // disable buttons
+                enableClickableGUIItems(false);
+
+                // create message json in format of device shadow
+                final String message = new Gson().toJson(shadow, AwsShadow.class);
+
+                // publish message
+                mqttConnection.publish(awsConstants.SHADOW_UPDATE, message);
+
+                // show progress bar and wait for certain time
+                // if no message from device has been received, display toast message
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        progressBarLoad.setVisibility(View.VISIBLE);
+                    }
+                });
+                timeoutHandler.postDelayed(displayTimeoutToast, AwsConstants.TIMEOUT);
+
+                Log.d(Connection.LOG_TAG, "Engine Load update request was send.");
+            }
+        });
+
+        b02Refresh.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AwsShadow shadow = new AwsShadow();
+                shadow.state.desired.osUpdate = 1;
+
+                // reported and metadata must not be sent along with desired shadow state
+                shadow.state.reported = null;
+                shadow.metadata = null;
+
+                // disable buttons
+                enableClickableGUIItems(false);
+
+                // create message json in format of device shadow
+                final String message = new Gson().toJson(shadow, AwsShadow.class);
+
+                // publish message
+                mqttConnection.publish(awsConstants.SHADOW_UPDATE, message);
+
+                // show progress bar and wait for certain time
+                // if no message from device has been received, display toast message
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        progressBar02.setVisibility(View.VISIBLE);
+                    }
+                });
+                timeoutHandler.postDelayed(displayTimeoutToast, AwsConstants.TIMEOUT);
+
+                Log.d(Connection.LOG_TAG, "Oxygen Sensor update request was send.");
+            }
+        });
+
 
         // create preferences listener
         // on success, establish MQTT connection
@@ -322,69 +535,6 @@ public class MainActivity extends AppCompatActivity {
                                             // enable GUI items
                                             enableClickableGUIItems(true);
 
-                                            // update LED info (e.g. colours and count)
-                                           // if (shadow.state.reported.LEDinfo != null) {
-                                           //     if (shadow.state.reported.LEDinfo.isRgbLed != null) {
-                                            //        isRgbLed = shadow.state.reported.LEDinfo.isRgbLed;
-                                             //   }
-                                            //    if (shadow.state.reported.LEDinfo.colors != null) {
-                                            //        ledColours = shadow.state.reported.LEDinfo.colors;
-                                            //        numberOfLEDs = isRgbLed ? 1 : ledColours.length;
-                                           //     }
-                                           //     Log.d(Connection.LOG_TAG, String.format("Device has %d %s", ledColours.length, isRgbLed ? "RGB LED" : "LEDs"));
-                                          //  }
-
-                                          //  if (numberOfLEDs > 0) {
-                                                // display switch text and colour according to device with RGB or regular LEDs
-                                            //    runOnUiThread(new Runnable() {
-                                              //      @Override
-                                             //       public void run() {
-                                                   //     cardViewLed.setVisibility(View.VISIBLE);
-                                                  //      tvLedTitle.setText(isRgbLed ? "RGB LED" : "LEDs");
-
-                                                        // hide by default all buttons
-                                                    //    for (int i = 0; i < 3; i++) {
-                                                   //         switches[i].setVisibility(View.INVISIBLE);
-                                                   //     }
-
-                                                    //    for (int i = 0; i < (isRgbLed ? 3 : numberOfLEDs) && i < 3; i++) {
-                                                    //        switches[i].setText(isRgbLed ? rgbLEDSwitchNames[i] : ("LED #" + (i+1)));
-                                                    //        switches[i].setEnabled(true);
-                                                    ///        switches[i].setVisibility(View.VISIBLE);
-
-                                                    //        switch (ledColours[i]) {
-                                                      //          default:
-                                                                    // LED not available
-                                                       //             switches[i].setTextColor(blackColour);
-                                                       //             switches[i].setEnabled(false);
-                                                       //             switches[i].setChecked(false);
-                                                         //           break;
-                                                        //        case "red":
-                                                        //            switches[i].setTextColor(redColour);
-                                                        //            break;
-                                                       //         case "green":
-                                                        //            switches[i].setTextColor(greenColour);
-                                                        //            break;
-                                                       //         case "blue":
-                                                       //             switches[i].setTextColor(blueColour);
-                                                        //            break;
-                                                      //      }
-                                                      //  }
-                                                 //   }
-                                              //  });
-
-                                                // RGB LED
-                                             //   updateLedColourAfterShadowUpdate(shadow);
-                                         //   } else {
-                                         //       // no LED
-                                         //       runOnUiThread(new Runnable() {
-                                          //          @Override
-                                           //         public void run() {
-                                           //             cardViewLed.setVisibility(View.INVISIBLE);
-                                        //            }
-                                       //         });
-                                       //     }
-
                                             // accelerometer
                                             updateAccelValuesAfterShadowUpdate(shadow);
 
@@ -402,15 +552,118 @@ public class MainActivity extends AppCompatActivity {
                                                                 Toast.LENGTH_LONG
                                                         ).show();
 
-                                                        // update LED switches
-                                                      //  Integer state = 0;
-                                                     //   if (shadow.state.desired != null && shadow.state.desired.LEDstate != null) {
-                                                     //       state = shadow.state.desired.LEDstate;
-                                                     //   }
-
-
-                                                        // hide accelerometer, if no data has been received
+                                                        // hide if no data has been received
                                                         cardViewAccel.setVisibility(shadow.state.reported.accel == null ? View.GONE : View.VISIBLE);
+                                                    }
+                                                });
+                                            }
+
+                                            updateRPMValuesAfterShadowUpdate(shadow);
+
+                                            // remove timeout callback
+                                            timeoutHandler.removeCallbacks(displayTimeoutToast);
+
+                                            // last known shadow state received
+                                            if (topic.equals(awsConstants.SHADOW_GET_ACCEPTED)) {
+                                                runOnUiThread(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        Toast.makeText(
+                                                                getApplicationContext(),
+                                                                "Last known device shadow state has been received.",
+                                                                Toast.LENGTH_LONG
+                                                        ).show();
+
+                                                        // hide if no data has been received
+                                                        cardViewRPM.setVisibility(shadow.state.reported.rpm == null ? View.GONE : View.VISIBLE);
+                                                    }
+                                                });
+                                            }
+
+                                            updateSpeedValuesAfterShadowUpdate(shadow);
+
+                                            // remove timeout callback
+                                            timeoutHandler.removeCallbacks(displayTimeoutToast);
+
+                                            // last known shadow state received
+                                            if (topic.equals(awsConstants.SHADOW_GET_ACCEPTED)) {
+                                                runOnUiThread(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        Toast.makeText(
+                                                                getApplicationContext(),
+                                                                "Last known device shadow state has been received.",
+                                                                Toast.LENGTH_LONG
+                                                        ).show();
+
+                                                        // hide if no data has been received
+                                                        cardViewSpeed.setVisibility(shadow.state.reported.rpm == null ? View.GONE : View.VISIBLE);
+                                                    }
+                                                });
+                                            }
+
+                                            updateMAFValuesAfterShadowUpdate(shadow);
+
+                                            // remove timeout callback
+                                            timeoutHandler.removeCallbacks(displayTimeoutToast);
+
+                                            // last known shadow state received
+                                            if (topic.equals(awsConstants.SHADOW_GET_ACCEPTED)) {
+                                                runOnUiThread(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        Toast.makeText(
+                                                                getApplicationContext(),
+                                                                "Last known device shadow state has been received.",
+                                                                Toast.LENGTH_LONG
+                                                        ).show();
+
+                                                        // hide if no data has been received
+                                                        cardViewMAF.setVisibility(shadow.state.reported.maf == null ? View.GONE : View.VISIBLE);
+                                                    }
+                                                });
+                                            }
+
+                                            updateLOADValuesAfterShadowUpdate(shadow);
+
+                                            // remove timeout callback
+                                            timeoutHandler.removeCallbacks(displayTimeoutToast);
+
+                                            // last known shadow state received
+                                            if (topic.equals(awsConstants.SHADOW_GET_ACCEPTED)) {
+                                                runOnUiThread(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        Toast.makeText(
+                                                                getApplicationContext(),
+                                                                "Last known device shadow state has been received.",
+                                                                Toast.LENGTH_LONG
+                                                        ).show();
+
+                                                        // hide if no data has been received
+                                                        cardViewLoad.setVisibility(shadow.state.reported.maf == null ? View.GONE : View.VISIBLE);
+                                                    }
+                                                });
+                                            }
+
+                                            updateOSValuesAfterShadowUpdate(shadow);
+
+                                            // remove timeout callback
+                                            timeoutHandler.removeCallbacks(displayTimeoutToast);
+
+                                            // last known shadow state received
+                                            if (topic.equals(awsConstants.SHADOW_GET_ACCEPTED)) {
+                                                runOnUiThread(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        Toast.makeText(
+                                                                getApplicationContext(),
+                                                                "Last known device shadow state has been received.",
+                                                                Toast.LENGTH_LONG
+                                                        ).show();
+
+                                                        // hide if no data has been received
+                                                        cardView02.setVisibility(shadow.state.reported.maf == null ? View.GONE : View.VISIBLE);
                                                     }
                                                 });
                                             }
@@ -428,6 +681,7 @@ public class MainActivity extends AppCompatActivity {
                                                 }
                                             });
                                         }
+
                                     } catch (UnsupportedEncodingException e) {
                                         Log.e(Connection.LOG_TAG, "Message encoding error.", e);
                                     } catch (Exception e) {
@@ -530,96 +784,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 bAccelRefresh.setEnabled(enable);
+                bRPMRefresh.setEnabled(enable);
+                bSpeedRefresh.setEnabled(enable);
+                bMAFRefresh.setEnabled(enable);
+                bLoadRefresh.setEnabled(enable);
+                b02Refresh.setEnabled(enable);
             }
         });
     }
-
-    /**
-     * Change colour of RGB LED after receiving shadow update from subscription.
-     * @param shadow AWS shadow
-     */
-  //  private void updateLedColourAfterShadowUpdate(final AwsShadow shadow) {
-    //    if (shadow.state.reported != null && shadow.state.reported.LEDstate != null) {
-            // save RGB LED shadow state
-      //      rgbLedBinState = shadow.state.reported.LEDstate;
-
-            // update UI items
-      //      runOnUiThread(new Runnable() {
-           //     @Override
-        ////        public void run() {
-                    // update timestamp
-            //        tvRgbLedTimestamp.setText(formatUnixTimeStamp(shadow.metadata.reported.LEDstate.timestamp));
-
-                    // hide progress bar
-           //         progressBarRgbLed.setVisibility(View.INVISIBLE);
-
-                    // update colour of LED image according to state of device
-                 //   final Bitmap LEDBitmap = changeRGBLedColour(
-                  //          (rgbLedBinState & 0b001) > 0, // LED #1
-                 //           (rgbLedBinState & 0b010) > 0, // LED #2
-                 //           (rgbLedBinState & 0b100) > 0  // LED #3
-                 //   );
-                   // iLedImage.setImageBitmap(LEDBitmap);
-         //       }
-       //     });
-     //   }
-  //  }
-
-    /**
-     * Either change colour of RGB LED according to reported colour or turn on/off LEDs.
-     * Currently maximum of three LEDs is possible to control.
-     */
-    /*private Bitmap changeRGBLedColour(boolean red, boolean green, boolean blue) {
-        // load drawables as bitmaps
-        Bitmap led = BitmapFactory.decodeResource(getResources(), R.drawable.ic_led);
-        Bitmap ledFilled = BitmapFactory.decodeResource(getResources(), R.drawable.ic_led_filled);
-
-        // create result bitmap
-        Bitmap result = Bitmap.createBitmap(isRgbLed ? led.getWidth() : led.getWidth() * numberOfLEDs, led.getHeight(), led.getConfig());
-        Canvas canvas = new Canvas(result);
-
-        // draw filled LED bitmap
-        for (int i=0; i<numberOfLEDs && i<3; i++) {
-            canvas.drawBitmap(ledFilled, led.getWidth() * i, 0f, null);
-        }
-
-        // change colour of LED according to reported colour
-        if (isRgbLed) {
-            final int mixedColor = Color.rgb(red ? 255 : 0, green ? 255 : 0, blue ? 255 : 0);
-            canvas.drawColor(mixedColor, PorterDuff.Mode.SRC_ATOP);
-        } else {
-            final boolean[] states = { red, green, blue };
-            for (int i=0; i<numberOfLEDs; i++) {
-                if (!states[i]) {
-                    continue;
-                }
-                // select LED area
-                canvas.clipRect(led.getWidth() * i, 0, led.getWidth() * (i + 1), led.getHeight(), Region.Op.REPLACE);
-
-                // determine colour
-                int colour;
-                switch (ledColours[i]) {
-                    default: colour = blackColour; break;
-                    case "red": colour = redColour; break;
-                    case "blue": colour = blueColour; break;
-                    case "green": colour = greenColour; break;
-                }
-                canvas.drawColor(colour, PorterDuff.Mode.SRC_ATOP);
-            }
-        }
-
-        // set clip rectangle to whole area
-        canvas.clipRect(0, 0, led.getWidth() * numberOfLEDs, led.getHeight(), Region.Op.UNION);
-
-        // draw LED border
-        Paint blackPaint = new Paint();
-        blackPaint.setColorFilter(new PorterDuffColorFilter(blackColour, PorterDuff.Mode.SRC_ATOP));
-        for (int i=0; i<numberOfLEDs; i++) {
-            canvas.drawBitmap(led, led.getWidth() * i, 0f, blackPaint);
-        }
-
-        return result;
-    }*/
 
     /**
      * Update accelerometer values after receiving shadow update from subscription.
@@ -643,6 +815,151 @@ public class MainActivity extends AppCompatActivity {
 
                         // hide progress bar
                         progressBarAccel.setVisibility(View.INVISIBLE);
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * Update rpm values after receiving shadow update from subscription.
+     * @param shadow AWS shadow
+     */
+    private void updateRPMValuesAfterShadowUpdate(final AwsShadow shadow) {
+        if (shadow.state.reported != null){
+            if (shadow.state.reported.rpm != null) {
+                final AwsShadow.State.Reported.RPM rpm = shadow.state.reported.rpm;
+
+                runOnUiThread(new Runnable() {
+                    @SuppressLint("DefaultLocale")
+                    @Override
+                    public void run() {
+                        cardViewRPM.setVisibility(View.VISIBLE);
+
+                        // update rpm values
+                        tvRPMValues.setText(String.format("RPM: %d", rpm.rpm));
+
+                        // update timestamp
+                        tvRPMTimestamp.setText(formatUnixTimeStamp(shadow.metadata.reported.rpm.rpm.timestamp));
+
+                        // hide progress bar
+                        progressBarRPM.setVisibility(View.INVISIBLE);
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * Update speed values after receiving shadow update from subscription.
+     * @param shadow AWS shadow
+     */
+    private void updateSpeedValuesAfterShadowUpdate(final AwsShadow shadow) {
+        if (shadow.state.reported != null){
+            if (shadow.state.reported.speed != null) {
+                final AwsShadow.State.Reported.Speed speed = shadow.state.reported.speed;
+
+                runOnUiThread(new Runnable() {
+                    @SuppressLint("DefaultLocale")
+                    @Override
+                    public void run() {
+                        cardViewSpeed.setVisibility(View.VISIBLE);
+
+                        // update speed values
+                        tvSpeedValues.setText(String.format("Vehicle Speed: %d", speed.speed));
+
+                        // update timestamp
+                        tvSpeedTimestamp.setText(formatUnixTimeStamp(shadow.metadata.reported.speed.speed.timestamp));
+
+                        // hide progress bar
+                        progressBarSpeed.setVisibility(View.INVISIBLE);
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * Update maf values after receiving shadow update from subscription.
+     * @param shadow AWS shadow
+     */
+    private void updateMAFValuesAfterShadowUpdate(final AwsShadow shadow) {
+        if (shadow.state.reported != null){
+            if (shadow.state.reported.maf != null) {
+                final AwsShadow.State.Reported.MAF maf = shadow.state.reported.maf;
+
+                runOnUiThread(new Runnable() {
+                    @SuppressLint("DefaultLocale")
+                    @Override
+                    public void run() {
+                        cardViewMAF.setVisibility(View.VISIBLE);
+
+                        // update maf values
+                        tvMAFValues.setText(String.format("MAF: %d", maf.maf));
+
+                        // update timestamp
+                        tvMAFTimestamp.setText(formatUnixTimeStamp(shadow.metadata.reported.maf.maf.timestamp));
+
+                        // hide progress bar
+                        progressBarMAF.setVisibility(View.INVISIBLE);
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * Update engine load values after receiving shadow update from subscription.
+     * @param shadow AWS shadow
+     */
+    private void updateLOADValuesAfterShadowUpdate(final AwsShadow shadow) {
+        if (shadow.state.reported != null){
+            if (shadow.state.reported.load != null) {
+                final AwsShadow.State.Reported.LOAD load = shadow.state.reported.load;
+
+                runOnUiThread(new Runnable() {
+                    @SuppressLint("DefaultLocale")
+                    @Override
+                    public void run() {
+                        cardViewLoad.setVisibility(View.VISIBLE);
+
+                        // update engine load values
+                        tvLoadValues.setText(String.format("Engine Load: %d", load.load));
+
+                        // update timestamp
+                        tvLoadTimestamp.setText(formatUnixTimeStamp(shadow.metadata.reported.load.load.timestamp));
+
+                        // hide progress bar
+                        progressBarLoad.setVisibility(View.INVISIBLE);
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * Update oxygen sensor values after receiving shadow update from subscription.
+     * @param shadow AWS shadow
+     */
+    private void updateOSValuesAfterShadowUpdate(final AwsShadow shadow) {
+        if (shadow.state.reported != null){
+            if (shadow.state.reported.os != null) {
+                final AwsShadow.State.Reported.OS os = shadow.state.reported.os;
+
+                runOnUiThread(new Runnable() {
+                    @SuppressLint("DefaultLocale")
+                    @Override
+                    public void run() {
+                        cardView02.setVisibility(View.VISIBLE);
+
+                        // update oxygen sensor values
+                        tv02Values.setText(String.format("02 Value: %d", os.os));
+
+                        // update timestamp
+                        tv02Timestamp.setText(formatUnixTimeStamp(shadow.metadata.reported.os.os.timestamp));
+
+                        // hide progress bar
+                        progressBar02.setVisibility(View.INVISIBLE);
                     }
                 });
             }

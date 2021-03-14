@@ -52,30 +52,18 @@ public class AwsShadow {
         public class Desired {
             Desired() {}
 
-            /** LED state */
-         //   public Integer LEDstate;
-
             /** Accelerometer update */
             public Integer accelUpdate;
+            public Integer rpmUpdate;
+            public Integer speedUpdate;
+            public Integer mafUpdate;
+            public Integer loadUpdate;
+            public Integer osUpdate;
         }
 
         /** Reported state = what device has set */
         public class Reported {
             Reported() {}
-
-            /** LED state */
-        //    public Integer LEDstate;
-
-            /** LED information */
-       //     public LEDinfo LEDinfo;
-
-      //      public class LEDinfo {
-                /** RGB LED or three red LEDs, depends on board */
-       //        public Boolean isRgbLed;
-
-                /** Colours of device LEDs */
-       //         public String[] colors;
-         //   }
 
             /** Accelerometer */
             public Accel accel;
@@ -84,6 +72,41 @@ public class AwsShadow {
                 public Integer x;
                 public Integer y;
                 public Integer z;
+            }
+
+            /** RPM */
+            public RPM rpm;
+
+            public class RPM {
+                public Integer rpm;
+            }
+
+            /** Speed */
+            public Speed speed;
+
+            public class Speed {
+                public Integer speed;
+            }
+
+            /** MAF */
+            public MAF maf;
+
+            public class MAF {
+                public Integer maf;
+            }
+
+            /** Engine Load */
+            public LOAD load;
+
+            public class LOAD {
+                public Integer load;
+            }
+
+            /** Oxygen Sensor */
+            public OS os;
+
+            public class OS {
+                public Integer os;
             }
         }
     }
@@ -96,7 +119,31 @@ public class AwsShadow {
             Reported() {}
 
             public Accel accel;
-         //   public Timestamp LEDstate;
+            public RPM rpm;
+            public Speed speed;
+            public MAF maf;
+            public LOAD load;
+            public OS os;
+
+            public class RPM {
+                public Timestamp rpm;
+            }
+
+            public class Speed {
+                public Timestamp speed;
+            }
+
+            public class MAF {
+                public Timestamp maf;
+            }
+
+            public class LOAD {
+                public Timestamp load;
+            }
+
+            public class OS {
+                public Timestamp os;
+            }
 
             public class Accel {
                 public Timestamp x;
