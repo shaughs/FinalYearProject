@@ -53,25 +53,23 @@ public class AwsShadow {
             Desired() {}
 
             /** Accelerometer update */
-            public Integer accelUpdate;
+            public Integer tempUpdate;
             public Integer rpmUpdate;
             public Integer speedUpdate;
             public Integer mafUpdate;
             public Integer loadUpdate;
-            public Integer osUpdate;
+
         }
 
         /** Reported state = what device has set */
         public class Reported {
             Reported() {}
 
-            /** Accelerometer */
-            public Accel accel;
+            /** Coolant Temperature */
+            public Temp temp;
 
-            public class Accel {
-                public Integer x;
-                public Integer y;
-                public Integer z;
+            public class Temp {
+                public Integer temp;
             }
 
             /** RPM */
@@ -102,12 +100,6 @@ public class AwsShadow {
                 public Integer load;
             }
 
-            /** Oxygen Sensor */
-            public OS os;
-
-            public class OS {
-                public Integer os;
-            }
         }
     }
 
@@ -118,12 +110,11 @@ public class AwsShadow {
         public class Reported {
             Reported() {}
 
-            public Accel accel;
+            public Temp temp;
             public RPM rpm;
             public Speed speed;
             public MAF maf;
             public LOAD load;
-            public OS os;
 
             public class RPM {
                 public Timestamp rpm;
@@ -141,14 +132,8 @@ public class AwsShadow {
                 public Timestamp load;
             }
 
-            public class OS {
-                public Timestamp os;
-            }
-
-            public class Accel {
-                public Timestamp x;
-                public Timestamp y;
-                public Timestamp z;
+            public class Temp {
+                public Timestamp temp;
             }
 
             public class Timestamp {

@@ -47,38 +47,33 @@ public class MainActivity extends AppCompatActivity {
     AwsConstants awsConstants;
 
     /** GUI items */
-    ImageButton bAccelRefresh;
+    ImageButton bTempRefresh;
     ImageButton bRPMRefresh;
     ImageButton bSpeedRefresh;
     ImageButton bMAFRefresh;
     ImageButton bLoadRefresh;
-    ImageButton b02Refresh;
     TextView tvConnectionStatus;
-    TextView tvAccelTimestamp;
+    TextView tvTempTimestamp;
     TextView tvRPMTimestamp;
     TextView tvSpeedTimestamp;
     TextView tvMAFTimestamp;
     TextView tvLoadTimestamp;
-    TextView tv02Timestamp;
-    TextView tvAccelValues;
+    TextView tvTempValues;
     TextView tvRPMValues;
     TextView tvSpeedValues;
     TextView tvMAFValues;
     TextView tvLoadValues;
-    TextView tv02Values;
     ProgressBar progressBarConnection;
-    ProgressBar progressBarAccel;
+    ProgressBar progressBarTemp;
     ProgressBar progressBarMAF;
     ProgressBar progressBarRPM;
     ProgressBar progressBarSpeed;
     ProgressBar progressBarLoad;
-    ProgressBar progressBar02;
-    CardView cardViewAccel;
+    CardView cardViewTemp;
     CardView cardViewMAF;
     CardView cardViewRPM;
     CardView cardViewSpeed;
     CardView cardViewLoad;
-    CardView cardView02;
 
     /** variables */
     Handler timeoutHandler;
@@ -105,38 +100,33 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // GUI items instances
-        bAccelRefresh = (ImageButton) findViewById(R.id.bAccelRefresh);
+        bTempRefresh = (ImageButton) findViewById(R.id.bTempRefresh);
         bRPMRefresh = (ImageButton) findViewById(R.id.bRPMRefresh);
         bSpeedRefresh = (ImageButton) findViewById(R.id.bSpeedRefresh);
         bMAFRefresh = (ImageButton) findViewById(R.id.bMAFRefresh);
         bLoadRefresh = (ImageButton) findViewById(R.id.bLoadRefresh);
-        b02Refresh = (ImageButton) findViewById(R.id.b02Refresh);
         tvConnectionStatus = (TextView) findViewById(R.id.tvConnectionStatus);
-        tvAccelTimestamp = (TextView) findViewById(R.id.tvAccelTimestamp);
+        tvTempTimestamp = (TextView) findViewById(R.id.tvTempTimestamp);
         tvRPMTimestamp = (TextView) findViewById(R.id.tvRPMTimestamp);
         tvSpeedTimestamp = (TextView) findViewById(R.id.tvSpeedTimestamp);
         tvMAFTimestamp = (TextView) findViewById(R.id.tvMAFTimestamp);
         tvLoadTimestamp = (TextView) findViewById(R.id.tvLoadTimestamp);
-        tv02Timestamp = (TextView) findViewById(R.id.tv02Timestamp);
-        tvAccelValues = (TextView) findViewById(R.id.tvAccelValues);
+        tvTempValues = (TextView) findViewById(R.id.tvTempValues);
         tvRPMValues = (TextView) findViewById(R.id.tvRPMValues);
         tvSpeedValues = (TextView) findViewById(R.id.tvSpeedValues);
         tvMAFValues = (TextView) findViewById(R.id.tvMAFValues);
         tvLoadValues = (TextView) findViewById(R.id.tvLoadValues);
-        tv02Values = (TextView) findViewById(R.id.tv02Values);
         progressBarConnection = (ProgressBar) findViewById(R.id.progressBarConnection);
-        progressBarAccel = (ProgressBar) findViewById(R.id.progressBarAccel);
+        progressBarTemp = (ProgressBar) findViewById(R.id.progressBarTemp);
         progressBarRPM = (ProgressBar) findViewById(R.id.progressBarRPM);
         progressBarSpeed = (ProgressBar) findViewById(R.id.progressBarSpeed);
         progressBarMAF = (ProgressBar) findViewById(R.id.progressBarMAF);
         progressBarLoad = (ProgressBar) findViewById(R.id.progressBarLoad);
-        progressBar02 = (ProgressBar) findViewById(R.id.progressBar02);
-        cardViewAccel = (CardView) findViewById(R.id.card_view_accel);
+        cardViewTemp = (CardView) findViewById(R.id.card_view_Temp);
         cardViewRPM = (CardView) findViewById(R.id.card_view_RPM);
         cardViewSpeed = (CardView) findViewById(R.id.card_view_Speed);
         cardViewMAF = (CardView) findViewById(R.id.card_view_MAF);
         cardViewLoad = (CardView) findViewById(R.id.card_view_Load);
-        cardView02 = (CardView) findViewById(R.id.card_view_02);
 
         // default variable values
         mqttConnected = false;
@@ -157,12 +147,11 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        progressBarAccel.setVisibility(View.INVISIBLE);
+                        progressBarTemp.setVisibility(View.INVISIBLE);
                         progressBarRPM.setVisibility(View.INVISIBLE);
                         progressBarSpeed.setVisibility(View.INVISIBLE);
                         progressBarMAF.setVisibility(View.INVISIBLE);
                         progressBarLoad.setVisibility(View.INVISIBLE);
-                        progressBar02.setVisibility(View.INVISIBLE);
                     }
                 });
 
@@ -224,12 +213,11 @@ public class MainActivity extends AppCompatActivity {
                 AwsShadow shadow = new AwsShadow();
 
                 // reported and metadata must not be sent along with desired shadow state
-                shadow.state.desired.accelUpdate = null;
+                shadow.state.desired.tempUpdate = null;
                 shadow.state.desired.rpmUpdate = null;                                                  //RPM
                 shadow.state.desired.speedUpdate = null;                                                //Speed
                 shadow.state.desired.mafUpdate = null;                                                  //MAF
                 shadow.state.desired.loadUpdate = null;                                                 //Engine Load
-                shadow.state.desired.osUpdate = null;                                                 //Engine Load
                 shadow.state.reported = null;
                 shadow.metadata = null;
 
@@ -246,11 +234,11 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        bAccelRefresh.setOnClickListener(new View.OnClickListener() {
+        bTempRefresh.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 AwsShadow shadow = new AwsShadow();
-                shadow.state.desired.accelUpdate = 1;
+                shadow.state.desired.tempUpdate = 1;
 
                 // reported and metadata must not be sent along with desired shadow state
                 shadow.state.reported = null;
@@ -270,7 +258,7 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        progressBarAccel.setVisibility(View.VISIBLE);
+                        progressBarTemp.setVisibility(View.VISIBLE);
                     }
                 });
                 timeoutHandler.postDelayed(displayTimeoutToast, AwsConstants.TIMEOUT);
@@ -312,7 +300,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        bRPMRefresh.setOnClickListener(new View.OnClickListener() {
+        bSpeedRefresh.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 AwsShadow shadow = new AwsShadow();
@@ -410,40 +398,6 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(Connection.LOG_TAG, "Engine Load update request was send.");
             }
         });
-
-        b02Refresh.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                AwsShadow shadow = new AwsShadow();
-                shadow.state.desired.osUpdate = 1;
-
-                // reported and metadata must not be sent along with desired shadow state
-                shadow.state.reported = null;
-                shadow.metadata = null;
-
-                // disable buttons
-                enableClickableGUIItems(false);
-
-                // create message json in format of device shadow
-                final String message = new Gson().toJson(shadow, AwsShadow.class);
-
-                // publish message
-                mqttConnection.publish(awsConstants.SHADOW_UPDATE, message);
-
-                // show progress bar and wait for certain time
-                // if no message from device has been received, display toast message
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        progressBar02.setVisibility(View.VISIBLE);
-                    }
-                });
-                timeoutHandler.postDelayed(displayTimeoutToast, AwsConstants.TIMEOUT);
-
-                Log.d(Connection.LOG_TAG, "Oxygen Sensor update request was send.");
-            }
-        });
-
 
         // create preferences listener
         // on success, establish MQTT connection
@@ -553,7 +507,7 @@ public class MainActivity extends AppCompatActivity {
                                                         ).show();
 
                                                         // hide if no data has been received
-                                                        cardViewAccel.setVisibility(shadow.state.reported.accel == null ? View.GONE : View.VISIBLE);
+                                                        cardViewTemp.setVisibility(shadow.state.reported.temp == null ? View.GONE : View.VISIBLE);
                                                     }
                                                 });
                                             }
@@ -642,28 +596,6 @@ public class MainActivity extends AppCompatActivity {
 
                                                         // hide if no data has been received
                                                         cardViewLoad.setVisibility(shadow.state.reported.maf == null ? View.GONE : View.VISIBLE);
-                                                    }
-                                                });
-                                            }
-
-                                            updateOSValuesAfterShadowUpdate(shadow);
-
-                                            // remove timeout callback
-                                            timeoutHandler.removeCallbacks(displayTimeoutToast);
-
-                                            // last known shadow state received
-                                            if (topic.equals(awsConstants.SHADOW_GET_ACCEPTED)) {
-                                                runOnUiThread(new Runnable() {
-                                                    @Override
-                                                    public void run() {
-                                                        Toast.makeText(
-                                                                getApplicationContext(),
-                                                                "Last known device shadow state has been received.",
-                                                                Toast.LENGTH_LONG
-                                                        ).show();
-
-                                                        // hide if no data has been received
-                                                        cardView02.setVisibility(shadow.state.reported.maf == null ? View.GONE : View.VISIBLE);
                                                     }
                                                 });
                                             }
@@ -783,12 +715,11 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                bAccelRefresh.setEnabled(enable);
+                bTempRefresh.setEnabled(enable);
                 bRPMRefresh.setEnabled(enable);
                 bSpeedRefresh.setEnabled(enable);
                 bMAFRefresh.setEnabled(enable);
                 bLoadRefresh.setEnabled(enable);
-                b02Refresh.setEnabled(enable);
             }
         });
     }
@@ -799,22 +730,22 @@ public class MainActivity extends AppCompatActivity {
      */
     private void updateAccelValuesAfterShadowUpdate(final AwsShadow shadow) {
         if (shadow.state.reported != null){
-            if (shadow.state.reported.accel != null) {
-                final AwsShadow.State.Reported.Accel accel = shadow.state.reported.accel;
+            if (shadow.state.reported.temp != null) {
+                final AwsShadow.State.Reported.Temp temp = shadow.state.reported.temp;
 
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        cardViewAccel.setVisibility(View.VISIBLE);
+                        cardViewTemp.setVisibility(View.VISIBLE);
 
                         // update accelerometer values
-                        tvAccelValues.setText(String.format("x: %d  y: %d  z: %d", accel.x, accel.y, accel.z));
+                        tvTempValues.setText(String.format("Coolant Temperature: %d", temp.temp));
 
                         // update timestamp
-                        tvAccelTimestamp.setText(formatUnixTimeStamp(shadow.metadata.reported.accel.x.timestamp));
+                        tvTempTimestamp.setText(formatUnixTimeStamp(shadow.metadata.reported.temp.temp.timestamp));
 
                         // hide progress bar
-                        progressBarAccel.setVisibility(View.INVISIBLE);
+                        progressBarTemp.setVisibility(View.INVISIBLE);
                     }
                 });
             }
@@ -931,35 +862,6 @@ public class MainActivity extends AppCompatActivity {
 
                         // hide progress bar
                         progressBarLoad.setVisibility(View.INVISIBLE);
-                    }
-                });
-            }
-        }
-    }
-
-    /**
-     * Update oxygen sensor values after receiving shadow update from subscription.
-     * @param shadow AWS shadow
-     */
-    private void updateOSValuesAfterShadowUpdate(final AwsShadow shadow) {
-        if (shadow.state.reported != null){
-            if (shadow.state.reported.os != null) {
-                final AwsShadow.State.Reported.OS os = shadow.state.reported.os;
-
-                runOnUiThread(new Runnable() {
-                    @SuppressLint("DefaultLocale")
-                    @Override
-                    public void run() {
-                        cardView02.setVisibility(View.VISIBLE);
-
-                        // update oxygen sensor values
-                        tv02Values.setText(String.format("02 Value: %d", os.os));
-
-                        // update timestamp
-                        tv02Timestamp.setText(formatUnixTimeStamp(shadow.metadata.reported.os.os.timestamp));
-
-                        // hide progress bar
-                        progressBar02.setVisibility(View.INVISIBLE);
                     }
                 });
             }

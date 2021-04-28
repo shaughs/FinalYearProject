@@ -60,7 +60,7 @@
     </androidx.cardview.widget.CardView>
 
     <androidx.cardview.widget.CardView
-        android:id="@+id/card_view_accel"
+        android:id="@+id/card_view_Temp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="8dp"
@@ -71,14 +71,14 @@
             android:layout_height="match_parent">
 
             <RelativeLayout
-                android:id="@+id/__accel_heading_layout"
+                android:id="@+id/__Temp_heading_layout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 tools:ignore="ExtraText">
 
                 <ImageButton
-                    android:id="@+id/bAccelRefresh"
+                    android:id="@+id/bTempRefresh"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_alignParentEnd="true"
@@ -88,48 +88,48 @@
                     android:src="@drawable/ic_action_refresh" />
 
                 <TextView
-                    android:id="@+id/_accel_heading"
+                    android:id="@+id/_Temp_heading"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:maxLines="3"
                     android:padding="8dp"
-                    android:text="Accelerator Pedal Postion %"
+                    android:text="Engine Coolant Temperature (°C)"
                     android:textColor="#222"
                     android:textSize="18sp"
                     android:textStyle="bold" />
             </RelativeLayout>
 
             <TextView
-                android:id="@+id/tvAccelValues"
+                android:id="@+id/tvTempValues"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/__accel_heading_layout"
+                android:layout_below="@id/__Temp_heading_layout"
                 android:gravity="center_horizontal"
                 android:maxLines="3"
                 android:padding="8dp"
-                android:text="x: - y: - z: -"
+                android:text="Coolant Temperature: "
                 android:textAlignment="center"
                 android:textColor="@android:color/black"
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
             <ProgressBar
-                android:id="@+id/progressBarAccel"
+                android:id="@+id/progressBarTemp"
                 style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/tvAccelValues"
+                android:layout_below="@id/tvTempValues"
                 android:indeterminate="true"
                 android:visibility="invisible" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/tvAccelValues"
+                android:layout_below="@id/tvTempValues"
                 android:orientation="horizontal">
 
                 <TextView
-                    android:id="@+id/_tvAccelTimestamp"
+                    android:id="@+id/_tvTempTimestamp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:padding="8dp"
@@ -138,11 +138,11 @@
                     android:textSize="16sp" />
 
                 <TextView
-                    android:id="@+id/tvAccelTimestamp"
+                    android:id="@+id/tvTempTimestamp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:padding="8dp"
-                    android:text="-"
+                    android:text=" - "
                     android:textColor="@android:color/black"
                     android:textSize="16sp" />
 
@@ -184,7 +184,7 @@
                     android:layout_height="wrap_content"
                     android:maxLines="3"
                     android:padding="8dp"
-                    android:text="RPM"
+                    android:text="RPM (revolutions per minute)"
                     android:textColor="#222"
                     android:textSize="18sp"
                     android:textStyle="bold" />
@@ -235,7 +235,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:padding="8dp"
-                    android:text="-"
+                    android:text=" - "
                     android:textColor="@android:color/black"
                     android:textSize="16sp" />
 
@@ -328,7 +328,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:padding="8dp"
-                        android:text="-"
+                        android:text=" - "
                         android:textColor="@android:color/black"
                         android:textSize="16sp" />
 
@@ -421,7 +421,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:padding="8dp"
-                    android:text="-"
+                    android:text=" - "
                     android:textColor="@android:color/black"
                     android:textSize="16sp" />
 
@@ -513,107 +513,13 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:padding="8dp"
-                    android:text="-"
+                    android:text=" - "
                     android:textColor="@android:color/black"
                     android:textSize="16sp" />
 
             </LinearLayout>
         </RelativeLayout>
     </androidx.cardview.widget.CardView>
-
-        <androidx.cardview.widget.CardView
-            android:id="@+id/card_view_02"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="8dp"
-            app:cardCornerRadius="5dp">
-
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-
-                <RelativeLayout
-                    android:id="@+id/__02_heading_layout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    tools:ignore="DuplicateIds,ExtraText">
-
-                    <ImageButton
-                        android:id="@+id/b02Refresh"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_alignParentEnd="true"
-                        android:layout_alignParentRight="true"
-                        android:background="@null"
-                        android:padding="8dp"
-                        android:src="@drawable/ic_action_refresh" />
-
-                    <TextView
-                        android:id="@+id/_02_heading"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:maxLines="3"
-                        android:padding="8dp"
-                        android:text="O2 Value (volts)"
-                        android:textColor="#222"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-                </RelativeLayout>
-
-                <TextView
-                    android:id="@+id/tv02Values"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_below="@id/__02_heading_layout"
-                    android:gravity="center_horizontal"
-                    android:maxLines="3"
-                    android:padding="8dp"
-                    android:text="02 Value: "
-                    android:textAlignment="center"
-                    android:textColor="@android:color/black"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    tools:ignore="DuplicateIds" />
-
-                <ProgressBar
-                    android:id="@+id/progressBar02"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_below="@id/tv02Values"
-                    android:indeterminate="true"
-                    android:visibility="invisible" />
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_below="@id/tv02Values"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/_tv02Timestamp"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:padding="8dp"
-                        android:text="@string/timestamp"
-                        android:textColor="@android:color/black"
-                        android:textSize="16sp" />
-
-                    <TextView
-                        android:id="@+id/tv02Timestamp"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:padding="8dp"
-                        android:text="-"
-                        android:textColor="@android:color/black"
-                        android:textSize="16sp" />
-
-                </LinearLayout>
-            </RelativeLayout>
-        </androidx.cardview.widget.CardView>
-
         <androidx.cardview.widget.CardView
             android:id="@+id/card_view_chart"
             android:layout_width="match_parent"
