@@ -3,11 +3,14 @@
 /* Standard includes. */
 #include <stdio.h>
 #include <string.h>
+#include "fsl_debug_console.h"
+#include "fsl_flexcan.h"
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+#include "queue.h"
 
 /* Logging includes. */
 #include "iot_logging_task.h"
@@ -26,6 +29,10 @@
 #include "iot_init.h"
 
 #include "board.h"
+#include "pin_mux.h"
+#include "clock_config.h"
+#include "peripherals.h"
+#include "MK64F12.h"
 
 /* Maximal count of tokens in parsed JSON */
 #define MAX_CNT_TOKENS 32
@@ -37,19 +44,12 @@
 
 #define shadowBUFFER_LENGTH 210
 
-/* Board specific accelerometer driver include */
-#if defined(BOARD_ACCEL_FXOS)
-#include "fsl_fxos.h"
-#elif defined(BOARD_ACCEL_MMA)
-#include "fsl_mma.h"
-#endif
-
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
 /** stack size for task that handles shadow delta and updates
  */
-#define DEMO_REMOTE_CONTROL_TASK_STACK_SIZE ((uint16_t)configMINIMAL_STACK_SIZE * (uint16_t)20)
+#define TASK_STACK_SIZE ((uint16_t)configMINIMAL_STACK_SIZE * (uint16_t)20)
 
 typedef struct
 {
@@ -68,117 +68,214 @@ typedef struct
 } vector_t;
 #endif
 
-/* Accelerometer driver specific defines */
-#if defined(BOARD_ACCEL_FXOS)
-#define ACCELL_READ_SENSOR_DATA(handle, data) FXOS_ReadSensorData(handle, data)
-#elif defined(BOARD_ACCEL_MMA)
-#define ACCELL_READ_SENSOR_DATA(handle, data) MMA_ReadSensorData(handle, data)
-#endif
+typedef struct {
+	uint8_t sourceID;
+	uint32_t dataField;
+}datastruct;
+
+#define coolTemp_ID 0
+#define RPM_ID 1
+#define speed_ID 2
+#define MAF_ID 3
+#define engineLoad_ID 4
 
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
 static void prvShadowMainTask(void *pvParameters);
+static void canbus_task(void *pvParameters);
+QueueHandle_t canbusQueue = NULL;
+static TaskHandle_t awsHandle = NULL;
+static TaskHandle_t canbusHandle = NULL;
 
 /*******************************************************************************
  * Variables
  ******************************************************************************/
+
+uint8_t CAN_Tx_Frame(uint16_t ID, uint8_t *dataFrame, uint8_t msgBuffIndex);
+uint8_t rxBuffer[8];
+static volatile uint8_t CANFrameReceived = 0;
+flexcan_frame_t txFrame, rxFrame;
+
+uint8_t coolantTemp_Request[8] = {0x2,0x1,0x05,0x55,0x55,0x55,0x55,0x55};
+uint8_t RPM_Request[8] = {0x2,0x1,0x0C,0x55,0x55,0x55,0x55,0x55};
+uint8_t speed_Request[8] = {0x2,0x1,0x0D,0x55,0x55,0x55,0x55,0x55};
+uint8_t MAF_Request[8] = {0x2,0x1,0x10,0x55,0x55,0x55,0x55,0x55};
+uint8_t engineLoad_Request[8] = {0x2,0x1,0x04,0x55,0x55,0x55,0x55,0x55};
+
+Can_addresses[5] = {coolantTemp_Request, RPM_Request, speed_Request, MAF_Request, engineLoad_Request};
+
 static char pcUpdateBuffer[shadowBUFFER_LENGTH];
 static ShadowClientHandle_t xClientHandle;
 QueueHandle_t jsonDeltaQueue = NULL;
 
-#if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
-/* Actual state of accelerometer */
-uint16_t accState       = 0;
+uint16_t tempState       = 0;
 uint16_t rpmState       = 0;
+uint16_t speedState       = 0;
 uint16_t mafState       = 0;
 uint16_t loadState       = 0;
-uint16_t osState       = 0;
-uint16_t parsedAccState = 0;
+
+uint16_t parsedtempState = 0;
 uint16_t parsedrpmState = 0;
+uint16_t parsedSpeedState = 0;
 uint16_t parsedmafState = 0;
 uint16_t parsedloadState = 0;
-uint16_t parsedosState = 0;
-#endif
 
-/* Accelerometer and magnetometer */
-#if defined(BOARD_ACCEL_FXOS)
-extern fxos_handle_t accelHandle;
-#elif defined(BOARD_ACCEL_MMA)
-extern mma_handle_t accelHandle;
-#endif
+uint8_t count = 0;
 
-#if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
-extern uint8_t g_accelDataScale;
-extern uint8_t g_accelResolution;
-#endif
+static uint8_t coolantTemp;
+static uint16_t rpm;
+static uint8_t speed;
+static uint8_t maf;
+static uint8_t load;
+
+datastruct display_struct;
+
+uint8_t AWS_Init = 0;
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
 
+/* Setup Rx Message Buffer. */
+const flexcan_rx_mb_config_t rxMbConfig = {
+  .id = FLEXCAN_ID_STD(0x7E8),
+  .format = kFLEXCAN_FrameFormatStandard,
+  .type = kFLEXCAN_FrameTypeData
+};
 
-/*!
- * @brief Read accelerometer sensor value
- */
-void read_mag_accel(vector_t *results, bool *status, uint8_t accelResolution)
-{
-#if defined(BOARD_ACCEL_FXOS)
-    fxos_data_t sensorData = {0};
-#elif defined(BOARD_ACCEL_MMA)
-    mma_data_t sensorData = {0};
-#endif
-    if (kStatus_Success != ACCELL_READ_SENSOR_DATA(&accelHandle, &sensorData))
-    {
-        /* Failed to read magnetometer and accelerometer data! */
-        *status = false;
-        return;
-    }
+/* CAN0_ORed_Message_buffer_IRQn interrupt handler */
+void CAN0_CAN_ORED_MB_IRQHANDLER(void) {
+	uint8_t x;
 
-    uint8_t divider = (1 << (16 - accelResolution));
+	printf("Message Buffer Status Flag: %d\n\r", FLEXCAN_GetMbStatusFlags(CAN0, 0x01));
 
-    /* Get the accelerometer data from the sensor */
-    results->A_x =
-        (int16_t)((uint16_t)((uint16_t)sensorData.accelXMSB << 8) | (uint16_t)sensorData.accelXLSB) / divider;
-    results->A_y =
-        (int16_t)((uint16_t)((uint16_t)sensorData.accelYMSB << 8) | (uint16_t)sensorData.accelYLSB) / divider;
-    results->A_z =
-        (int16_t)((uint16_t)((uint16_t)sensorData.accelZMSB << 8) | (uint16_t)sensorData.accelZLSB) / divider;
+	if(FLEXCAN_GetMbStatusFlags(CAN0, 0x01) == 1){
+		FLEXCAN_ClearMbStatusFlags(CAN0, 0x01);
+		FLEXCAN_ReadRxMb(CAN0, 0 , &rxFrame);
 
-    *status = true;
+		printf("\rCAN Rx Frame Received, ID: 0x%08x\n\r", (rxFrame.id & 0x1FFC0000)>>18);
+
+		rxBuffer[0] = rxFrame.dataByte0;
+		rxBuffer[1] = rxFrame.dataByte1;
+		rxBuffer[2] = rxFrame.dataByte2;
+		rxBuffer[3] = rxFrame.dataByte3;
+		rxBuffer[4] = rxFrame.dataByte4;
+		rxBuffer[5] = rxFrame.dataByte5;
+		rxBuffer[6] = rxFrame.dataByte6;
+		rxBuffer[7] = rxFrame.dataByte7;
+		for(x = 0; x < 8; x++) {
+			printf("%02x\t", rxBuffer[x]);
+		}
+		printf("\n\n\r");
+		CANFrameReceived = 1;
+	}
 }
 
-/* Build JSON document with reported state of the "accel" */
-int buildJsonAccel()
+static void canbus_task(void *pvParameters) {
+	while(1){
+	 datastruct canbus_struct;
+	 uint8_t i = 0;
+
+		for(i = 0; i < 6; i++){
+
+			if(i == 5){
+				i = 0;
+				vTaskSuspend(NULL);
+				vTaskResume(awsHandle);
+			}
+
+			CAN_Tx_Frame(0x7DF, Can_addresses[i], 1);
+
+			while(CANFrameReceived == 0);
+			CANFrameReceived = 0;
+
+			switch(rxBuffer[2]){
+			case 0x05:
+				printf("Coolant Temperature: %d Degrees Celsius\n\n\r", (rxBuffer[3]));
+				canbus_struct.sourceID = 0;
+				canbus_struct.dataField = (rxBuffer[3]);
+				xQueueSend(canbusQueue, &canbus_struct, 0);
+				break;
+
+			case 0x0C:
+				printf("RPM: %d revolutions per minute\n\n\r", ((uint16_t)rxBuffer[3]*256+rxBuffer[4])/4);
+				canbus_struct.sourceID = 1;
+				canbus_struct.dataField = (((uint16_t)rxBuffer[3]*256+rxBuffer[4])/4);
+				xQueueSend(canbusQueue, &canbus_struct, 0);
+				break;
+
+			case 0x0D:
+				printf("Speed: %dkm/h\n\n\r", rxBuffer[3]);
+				canbus_struct.sourceID = 2;
+				canbus_struct.dataField = (rxBuffer[3]);
+				xQueueSend(canbusQueue, &canbus_struct, 0);
+				break;
+
+			case 0x10:
+				printf("MAF: %d grams/sec\n\n\r", ((uint16_t)rxBuffer[3]*256+rxBuffer[4])/100);
+				canbus_struct.sourceID = 3;
+				canbus_struct.dataField = (((uint16_t)rxBuffer[3]*256+rxBuffer[4])/100);
+				xQueueSend(canbusQueue, &canbus_struct, 0);
+				break;
+
+			case 0x04:
+				printf("Engine Load: %d %%\n\n\r", ((uint16_t)rxBuffer[3])*100/255);
+				canbus_struct.sourceID = 4;
+				canbus_struct.dataField = (((uint16_t)rxBuffer[3])*100/255);
+				xQueueSend(canbusQueue, &canbus_struct, 0);
+				break;
+
+			default:
+				break;
+			}
+		}
+	}
+}
+
+uint8_t CAN_Tx_Frame(uint16_t ID, uint8_t *dataFrame, uint8_t msgBuffIndex) {
+	flexcan_frame_t txFrame;
+	txFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
+    txFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
+    txFrame.id     = FLEXCAN_ID_STD(ID);
+    txFrame.length = 8;
+
+    txFrame.dataByte0 = dataFrame[0];
+    txFrame.dataByte1 = dataFrame[1];
+    txFrame.dataByte2 = dataFrame[2];
+    txFrame.dataByte3 = dataFrame[3];
+    txFrame.dataByte4 = dataFrame[4];
+    txFrame.dataByte5 = dataFrame[5];
+    txFrame.dataByte6 = dataFrame[6];
+    txFrame.dataByte7 = dataFrame[7];
+
+    CANFrameReceived = 0;
+
+    printf("\rSending CAN Tx Frame\n\r");
+
+    FLEXCAN_TransferSendBlocking(CAN0, msgBuffIndex, &txFrame);\
+
+    printf("CAN TX Frame Sent\n\r");
+    return 1;
+}
+
+/* Build JSON document with reported state of the "Coolant Temp" */
+int buildJsonTEMP()
 {
-    /* Read data from accelerometer */
-    vector_t vec = {0};
-    bool read_ok = false;
-    read_mag_accel(&vec, &read_ok, g_accelResolution);
-    if (read_ok == false)
-    {
-        return -1;
-    }
+    char tmpBufcoolantTemp[128] = {0};
 
-    /* Convert raw data from accelerometer to acceleration range multiplied by 1000 (for range -2/+2 the values will be
-     * in range -2000/+2000) */
-    vec.A_x = (int16_t)((int32_t)vec.A_x * g_accelDataScale * 1000 / (1 << (g_accelResolution - 1)));
-    vec.A_y = (int16_t)((int32_t)vec.A_y * g_accelDataScale * 1000 / (1 << (g_accelResolution - 1)));
-    vec.A_z = (int16_t)((int32_t)vec.A_z * g_accelDataScale * 1000 / (1 << (g_accelResolution - 1)));
-
-    char tmpBufAccel[128] = {0};
-    sprintf(tmpBufAccel,  "{\"accel\":{\"x\":%d,\"y\":%d,\"z\":%d}}", vec.A_x, vec.A_y, vec.A_z);
+    sprintf(tmpBufcoolantTemp,  "{\"temp\":{\"temp\":%d}}", coolantTemp);
 
     int ret = 0;
     ret     = snprintf(pcUpdateBuffer, shadowBUFFER_LENGTH,
     		   "{\"state\":{"
-    		   "\"desired\":{"
-			   "\"accelUpdate\":null"
+			   "\"desired\":{"
+			   "\"tempUpdate\":null"
 			   "},"
 			   "\"reported\":%s},"
 			   "\"clientToken\": \"token-%d\""
 			   "}",
-               tmpBufAccel, (int)xTaskGetTickCount());
+			   tmpBufcoolantTemp, (int)xTaskGetTickCount());
 
     if (ret >= shadowBUFFER_LENGTH || ret < 0)
     {
@@ -193,7 +290,6 @@ int buildJsonAccel()
 /* Build JSON document with reported state of the "RPM" */
 int buildJsonRPM()
 {
-	uint32_t rpm = 1543;
     char tmpBufRPM[128] = {0};
 
     sprintf(tmpBufRPM,  "{\"rpm\":{\"rpm\":%d}}", rpm);
@@ -201,7 +297,7 @@ int buildJsonRPM()
     int ret = 0;
     ret     = snprintf(pcUpdateBuffer, shadowBUFFER_LENGTH,
     		   "{\"state\":{"
-    		   "\"desired\":{"
+			   "\"desired\":{"
 			   "\"rpmUpdate\":null"
 			   "},"
 			   "\"reported\":%s},"
@@ -219,10 +315,40 @@ int buildJsonRPM()
     }
 }
 
+
+/* Build JSON document with reported state of the "Speed" */
+int buildJsonSpeed()
+{
+
+    char tmpBufSpeed[128] = {0};
+
+    sprintf(tmpBufSpeed,  "{\"speed\":{\"speed\":%d}}", speed);
+
+    int ret = 0;
+    ret     = snprintf(pcUpdateBuffer, shadowBUFFER_LENGTH,
+    		   "{\"state\":{"
+    		   "\"desired\":{"
+			   "\"speedUpdate\":null"
+			   "},"
+			   "\"reported\":%s},"
+			   "\"clientToken\": \"token-%d\""
+			   "}",
+               tmpBufSpeed, (int)xTaskGetTickCount());
+
+    if (ret >= shadowBUFFER_LENGTH || ret < 0)
+    {
+        return -1;
+    }
+    else
+    {
+        return ret;
+    }
+}
+
 /* Build JSON document with reported state of the "MAF" */
 int buildJsonMAF()
 {
-	uint8_t maf = 7;
+
     char tmpBufMAF[128] = {0};
 
     sprintf(tmpBufMAF,  "{\"maf\":{\"maf\":%d}}", maf);
@@ -251,7 +377,7 @@ int buildJsonMAF()
 /* Build JSON document with reported state of the "Engine Load" */
 int buildJsonLOAD()
 {
-	uint8_t load = 45;
+
     char tmpBufLOAD[128] = {0};
 
     sprintf(tmpBufLOAD,  "{\"load\":{\"load\":%d}}", load);
@@ -266,35 +392,6 @@ int buildJsonLOAD()
 			   "\"clientToken\": \"token-%d\""
 			   "}",
                tmpBufLOAD, (int)xTaskGetTickCount());
-
-    if (ret >= shadowBUFFER_LENGTH || ret < 0)
-    {
-        return -1;
-    }
-    else
-    {
-        return ret;
-    }
-}
-
-/* Build JSON document with reported state of the "Oxygen Sensor" */
-int buildJsonOS()
-{
-	uint8_t os = 3;
-    char tmpBufOS[128] = {0};
-
-    sprintf(tmpBufOS,  "{\"os\":{\"os\":%d}}", os);
-
-    int ret = 0;
-    ret     = snprintf(pcUpdateBuffer, shadowBUFFER_LENGTH,
-    		   "{\"state\":{"
-    		   "\"desired\":{"
-			   "\"osUpdate\":null"
-			   "},"
-			   "\"reported\":%s},"
-			   "\"clientToken\": \"token-%d\""
-			   "}",
-               tmpBufOS, (int)xTaskGetTickCount());
 
     if (ret >= shadowBUFFER_LENGTH || ret < 0)
     {
@@ -346,22 +443,22 @@ static uint32_t prvGenerateShadowJSON()
                     "{"
                     "\"state\":{"
                     "\"desired\":{"
-                    "\"Accelstate\":%d"
+                    "\"tempstate\":%d"
                     "},"
                     "\"reported\":{"
-                    "\"Accelstate\":%d,"
-                    "\"accel\":{\"x\":0,\"y\":0,\"z\":0},"
+                    "\"tempstate\":%d,"
+    				"\"temp\":{\"temp\":0},"
     				"\"rpm\":{\"rpm\":0},"
+    				"\"speed\":{\"speed\":0},"
     				"\"maf\":{\"maf\":0},"
     				"\"load\":{\"load\":0},"
-    				"\"os\":{\"os\":0},"
-                    "\"Accelinfo\":{"
+                    "\"Tempinfo\":{"
                     "}"
                     "}"
                     "},"
                     "\"clientToken\": \"token-%d\""
                     "}",
-                    accState, accState, (int)xTaskGetTickCount());
+                    tempState, tempState, (int)xTaskGetTickCount());
 }
 
 int parseStringValue(char *val, char *json, jsmntok_t *token)
@@ -428,7 +525,7 @@ void processShadowDeltaJSON(char *json, uint32_t jsonLength)
     tokenCnt     = jsmn_parse(&parser, json, jsonLength, tokens, MAX_CNT_TOKENS);
     /* the token with state of device is at 6th positin in this delta JSON:
      * {"version":229,"timestamp":1510062270,"state":{"LEDstate":1},"metadata":{"LEDstate":{"timestamp":1510062270}}} */
-    if (tokenCnt < 6)
+    if (tokenCnt < 7)
     {
         return;
     }
@@ -460,13 +557,13 @@ void processShadowDeltaJSON(char *json, uint32_t jsonLength)
         err = parseStringValue(key, json, &tokens[i++]);
         if (err == 0)
         {
-            if (strstr(key, "accelUpdate"))
+            if (strstr(key, "tempUpdate"))
             {
             	 /* found "updateAccel" keyword, parse value of next token */
                 err = parseUInt16Value(&parsedValue, json, &tokens[i]);
                 if (err == 0)
                 {
-                    parsedAccState = parsedValue;
+                    parsedtempState = parsedValue;
                 }
             }
 #if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
@@ -477,6 +574,14 @@ void processShadowDeltaJSON(char *json, uint32_t jsonLength)
                 if (err == 0)
                 {
                     parsedrpmState = parsedValue;
+                }
+            } else if (strstr(key, "speedUpdate"))
+            {
+                /* found "updateRpm" keyword, parse value of next token */
+                err = parseUInt16Value(&parsedValue, json, &tokens[i]);
+                if (err == 0)
+                {
+                    parsedSpeedState = parsedValue;
                 }
             } else if (strstr(key, "mafUpdate"))
             {
@@ -493,14 +598,6 @@ void processShadowDeltaJSON(char *json, uint32_t jsonLength)
                 if (err == 0)
                 {
                     parsedloadState = parsedValue;
-                }
-            } else if (strstr(key, "osUpdate"))
-            {
-                /* found "updateMaf" keyword, parse value of next token */
-                err = parseUInt16Value(&parsedValue, json, &tokens[i]);
-                if (err == 0)
-                {
-                    parsedosState = parsedValue;
                 }
             }
 #endif
@@ -627,32 +724,50 @@ void prvShadowMainTask(void *pvParameters)
 
     jsonDelta_t jsonDelta;
 
+    AWS_Init = 1;
+
+    if(AWS_Init == 1){
+    	vStartCanBusTask();
+     }
+
     for (;;)
     {
+    	AWS_Init = 0;
+
+    	/*while(1){
+
         /* process delta shadow JSON received in prvDeltaCallback() */
+
         if (xQueueReceive(jsonDeltaQueue, &jsonDelta, portMAX_DELAY) == pdTRUE)
         {
+        	if(count <= 2){
+        		count = 0;
+				vTaskResume(canbusHandle);
+			}
+
             /* process item from queue */
             processShadowDeltaJSON(jsonDelta.pcDeltaDocument, jsonDelta.ulDocumentLength);
 
-
-            if (parsedAccState == 1)
+            if (parsedtempState == 1)
             {
-                configPRINTF(("Update accelerometer.\r\n"));
+            	count ++;
+                configPRINTF(("Update Coolant Temperature.\r\n"));
                 printf("%s\n\r", pcUpdateBuffer);
-                xOperationParams.ulDataLength = buildJsonAccel();
+                xOperationParams.ulDataLength = buildJsonTEMP();
                 xReturn                       = SHADOW_Update(xClientHandle, &xOperationParams, shadowDemoTIMEOUT);
                 if (xReturn == eShadowSuccess)
                 {
                     configPRINTF(("Successfully performed update.\r\n"));
+
                 }
                 else
                 {
                     configPRINTF(("Update failed, returned %d.\r\n", xReturn));
                 }
-                parsedAccState = 0;
+                parsedtempState = 0;
             }else if (parsedrpmState == 1)
             {
+            	count ++;
                 configPRINTF(("Update RPM Value.\r\n"));
                 printf("%s\n\r", pcUpdateBuffer);
                 xOperationParams.ulDataLength = buildJsonRPM();
@@ -660,14 +775,33 @@ void prvShadowMainTask(void *pvParameters)
                 if (xReturn == eShadowSuccess)
                 {
                     configPRINTF(("Successfully performed update.\r\n"));
+
                 }
                 else
                 {
                     configPRINTF(("Update failed, returned %d.\r\n", xReturn));
                 }
                 parsedrpmState = 0;
-           }else if (parsedmafState == 1)
+           }else if (parsedSpeedState == 1)
            {
+        	   count ++;
+               configPRINTF(("Update Speed Value.\r\n"));
+               printf("%s\n\r", pcUpdateBuffer);
+               xOperationParams.ulDataLength = buildJsonSpeed();
+               xReturn                       = SHADOW_Update(xClientHandle, &xOperationParams, shadowDemoTIMEOUT);
+               if (xReturn == eShadowSuccess)
+               {
+                   configPRINTF(("Successfully performed update.\r\n"));
+
+               }
+               else
+               {
+                   configPRINTF(("Update failed, returned %d.\r\n", xReturn));
+               }
+               parsedSpeedState = 0;
+          }else if (parsedmafState == 1)
+           {
+        	   count ++;
                configPRINTF(("Update MAF Value.\r\n"));
                printf("%s\n\r", pcUpdateBuffer);
                xOperationParams.ulDataLength = buildJsonMAF();
@@ -675,6 +809,7 @@ void prvShadowMainTask(void *pvParameters)
                if (xReturn == eShadowSuccess)
                {
                    configPRINTF(("Successfully performed update.\r\n"));
+
                }
                else
                {
@@ -683,36 +818,22 @@ void prvShadowMainTask(void *pvParameters)
                parsedmafState = 0;
           }else if (parsedloadState == 1)
           {
+        	  count ++;
               configPRINTF(("Update Engine Load Value.\r\n"));
               printf("%s\n\r", pcUpdateBuffer);
               xOperationParams.ulDataLength = buildJsonLOAD();
               xReturn                       = SHADOW_Update(xClientHandle, &xOperationParams, shadowDemoTIMEOUT);
               if (xReturn == eShadowSuccess)
               {
-                  configPRINTF(("Successfully performed update.\r\n"));
+                 configPRINTF(("Successfully performed update.\r\n"));
+
               }
               else
               {
                   configPRINTF(("Update failed, returned %d.\r\n", xReturn));
               }
               parsedloadState = 0;
-         }else if (parsedosState == 1)
-         {
-             configPRINTF(("Update Oxygen Sensor Value.\r\n"));
-             printf("%s\n\r", pcUpdateBuffer);
-             xOperationParams.ulDataLength = buildJsonOS();
-             xReturn                       = SHADOW_Update(xClientHandle, &xOperationParams, shadowDemoTIMEOUT);
-             if (xReturn == eShadowSuccess)
-             {
-                 configPRINTF(("Successfully performed update.\r\n"));
-             }
-             else
-             {
-                 configPRINTF(("Update failed, returned %d.\r\n", xReturn));
-             }
-             parsedosState = 0;
-        }
-
+         }
             /* return mqtt buffer */
             xReturn = SHADOW_ReturnMQTTBuffer(xClientHandle, jsonDelta.xBuffer);
             if (xReturn != eShadowSuccess)
@@ -723,8 +844,53 @@ void prvShadowMainTask(void *pvParameters)
     }
 }
 
+static void retrieveData_task(void *pvParameters) {
+datastruct data_struct;
+
+while(1) {
+	if(xQueueReceive(canbusQueue, &data_struct, portMAX_DELAY) == pdTRUE){
+			printf("ID: %d Data: %d \n\r",data_struct.sourceID, data_struct.dataField);
+
+			switch(data_struct.sourceID){
+
+			case coolTemp_ID:
+				coolantTemp = data_struct.dataField;
+				break;
+
+			case RPM_ID:
+				rpm = data_struct.dataField;
+				break;
+
+			case speed_ID:
+				speed = data_struct.dataField;
+				break;
+
+			case MAF_ID:
+				maf = data_struct.dataField;
+				break;
+
+			case engineLoad_ID:
+				load = data_struct.dataField;
+				break;
+
+			default:
+				break;
+			}
+		}
+	}
+}
+
 void vStartTask(void)
 {
-    (void)xTaskCreate(prvShadowMainTask, "AWS-RemoteCtrl", DEMO_REMOTE_CONTROL_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY,
-                      NULL);
+    xTaskCreate(prvShadowMainTask, "AWS", TASK_STACK_SIZE, NULL, 3, &awsHandle);
+}
+
+void vStartCanBusTask(void)
+{
+	FLEXCAN_SetRxMbConfig(CAN0, 0 , &rxMbConfig, true);
+
+    canbusQueue = xQueueCreate(5, sizeof(datastruct));
+    vQueueAddToRegistry(canbusQueue, "Can Bus Queue");
+  	xTaskCreate(canbus_task, "CanBus Task", 200, NULL, 4, &canbusHandle);
+	xTaskCreate(retrieveData_task, "Retrieve Data Task", 150, NULL, 5, NULL);
 }
