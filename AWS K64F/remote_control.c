@@ -25,7 +25,6 @@
 /* Required for shadow API's */
 #include "aws_shadow.h"
 #include "jsmn.h"
-
 #include "iot_init.h"
 
 #include "board.h"
@@ -58,16 +57,6 @@ typedef struct
     void *xBuffer;
 } jsonDelta_t;
 
-#if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
-/* Type definition of structure for data from the accelerometer */
-typedef struct
-{
-    int16_t A_x;
-    int16_t A_y;
-    int16_t A_z;
-} vector_t;
-#endif
-
 typedef struct {
 	uint8_t sourceID;
 	uint32_t dataField;
@@ -84,6 +73,7 @@ typedef struct {
  ******************************************************************************/
 static void prvShadowMainTask(void *pvParameters);
 static void canbus_task(void *pvParameters);
+
 QueueHandle_t canbusQueue = NULL;
 static TaskHandle_t awsHandle = NULL;
 static TaskHandle_t canbusHandle = NULL;
@@ -91,6 +81,9 @@ static TaskHandle_t canbusHandle = NULL;
 /*******************************************************************************
  * Variables
  ******************************************************************************/
+static char pcUpdateBuffer[shadowBUFFER_LENGTH];
+static ShadowClientHandle_t xClientHandle;
+QueueHandle_t jsonDeltaQueue = NULL;
 
 uint8_t CAN_Tx_Frame(uint16_t ID, uint8_t *dataFrame, uint8_t msgBuffIndex);
 uint8_t rxBuffer[8];
@@ -105,33 +98,26 @@ uint8_t engineLoad_Request[8] = {0x2,0x1,0x04,0x55,0x55,0x55,0x55,0x55};
 
 Can_addresses[5] = {coolantTemp_Request, RPM_Request, speed_Request, MAF_Request, engineLoad_Request};
 
-static char pcUpdateBuffer[shadowBUFFER_LENGTH];
-static ShadowClientHandle_t xClientHandle;
-QueueHandle_t jsonDeltaQueue = NULL;
-
-uint16_t tempState       = 0;
-uint16_t rpmState       = 0;
-uint16_t speedState       = 0;
-uint16_t mafState       = 0;
-uint16_t loadState       = 0;
-
-uint16_t parsedtempState = 0;
-uint16_t parsedrpmState = 0;
-uint16_t parsedSpeedState = 0;
-uint16_t parsedmafState = 0;
-uint16_t parsedloadState = 0;
-
-uint8_t count = 0;
-
 static uint8_t coolantTemp;
 static uint16_t rpm;
 static uint8_t speed;
 static uint8_t maf;
 static uint8_t load;
 
-datastruct display_struct;
-
+uint8_t count = 0;
 uint8_t AWS_Init = 0;
+
+uint16_t tempState = 0;
+uint16_t rpmState = 0;
+uint16_t speedState = 0;
+uint16_t mafState = 0;
+uint16_t loadState = 0;
+
+uint16_t parsedtempState = 0;
+uint16_t parsedrpmState = 0;
+uint16_t parsedSpeedState = 0;
+uint16_t parsedmafState = 0;
+uint16_t parsedloadState = 0;
 
 /*******************************************************************************
  * Code
@@ -734,13 +720,11 @@ void prvShadowMainTask(void *pvParameters)
     {
     	AWS_Init = 0;
 
-    	/*while(1){
-
         /* process delta shadow JSON received in prvDeltaCallback() */
 
         if (xQueueReceive(jsonDeltaQueue, &jsonDelta, portMAX_DELAY) == pdTRUE)
         {
-        	if(count <= 2){
+        	if(count == 1){
         		count = 0;
 				vTaskResume(canbusHandle);
 			}
@@ -758,7 +742,6 @@ void prvShadowMainTask(void *pvParameters)
                 if (xReturn == eShadowSuccess)
                 {
                     configPRINTF(("Successfully performed update.\r\n"));
-
                 }
                 else
                 {
@@ -775,7 +758,6 @@ void prvShadowMainTask(void *pvParameters)
                 if (xReturn == eShadowSuccess)
                 {
                     configPRINTF(("Successfully performed update.\r\n"));
-
                 }
                 else
                 {
@@ -792,7 +774,6 @@ void prvShadowMainTask(void *pvParameters)
                if (xReturn == eShadowSuccess)
                {
                    configPRINTF(("Successfully performed update.\r\n"));
-
                }
                else
                {
@@ -809,7 +790,6 @@ void prvShadowMainTask(void *pvParameters)
                if (xReturn == eShadowSuccess)
                {
                    configPRINTF(("Successfully performed update.\r\n"));
-
                }
                else
                {
@@ -826,7 +806,6 @@ void prvShadowMainTask(void *pvParameters)
               if (xReturn == eShadowSuccess)
               {
                  configPRINTF(("Successfully performed update.\r\n"));
-
               }
               else
               {
@@ -882,7 +861,7 @@ while(1) {
 
 void vStartTask(void)
 {
-    xTaskCreate(prvShadowMainTask, "AWS", TASK_STACK_SIZE, NULL, 3, &awsHandle);
+    xTaskCreate(prvShadowMainTask, "AWS Task", TASK_STACK_SIZE, NULL, 3, &awsHandle);
 }
 
 void vStartCanBusTask(void)

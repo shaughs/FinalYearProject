@@ -7,9 +7,7 @@
 #include "fsl_debug_console.h"
 #include "ksdk_mbedtls.h"
 #include "pin_mux.h"
-#include "clock_config.h"
 #include "peripherals.h"
-#include "MK64F12.h"
 
 /* FreeRTOS Demo Includes */
 #include "FreeRTOS.h"
@@ -20,7 +18,6 @@
 #include "aws_dev_mode_key_provisioning.h"
 #include "platform/iot_threads.h"
 #include "types/iot_network_types.h"
-#include "aws_demo.h"
 
 #include "aws_clientcredential.h"
 #include "iot_wifi.h"
@@ -34,13 +31,6 @@
 #define INIT_SUCCESS 0
 #define INIT_FAIL    1
 
-#define I2C_RELEASE_SDA_PORT  PORTE
-#define I2C_RELEASE_SCL_PORT  PORTE
-#define I2C_RELEASE_SDA_GPIO  GPIOE
-#define I2C_RELEASE_SDA_PIN   25U
-#define I2C_RELEASE_SCL_GPIO  GPIOE
-#define I2C_RELEASE_SCL_PIN   24U
-#define I2C_RELEASE_BUS_COUNT 100U
 #define LOGGING_TASK_PRIORITY   (tskIDLE_PRIORITY + 1)
 #define LOGGING_TASK_STACK_SIZE (200)
 #define LOGGING_QUEUE_LENGTH    (16)
@@ -48,10 +38,7 @@
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
-void BOARD_I2C_ReleaseBus(void);
-void BOARD_InitLEDs(void);
-void BOARD_InitSwitch(void);
-extern void vStartLedDemoTask(void);
+
 extern int initNetwork(void);
 
 /*******************************************************************************
@@ -68,6 +55,8 @@ const WIFINetworkParams_t pxNetworkParams = {
 /*******************************************************************************
  * Code
  ******************************************************************************/
+
+
 
 int initNetwork(void)
 {
@@ -107,10 +96,6 @@ int initNetwork(void)
     return INIT_SUCCESS;
 }
 
-void print_string(const char *string)
-{
-    PRINTF(string);
-}
 
 void main_task(void *pvParameters)
 {
@@ -135,22 +120,26 @@ int main(void)
     BOARD_InitBootClocks();
     BOARD_InitDebugConsole();
     BOARD_InitBootPeripherals();
-    BOARD_I2C_ConfigurePins();
-
     CRYPTO_InitHardware();
 
     if (xTaskCreate(main_task, "main_task", configMINIMAL_STACK_SIZE * 8, NULL, 4 , NULL) != pdPASS)
       {
           PRINTF("Main task creation failed!.\r\n");
-          while (1)
-              ;
+          while (1);
       }
 
     xLoggingTaskInitialize(LOGGING_TASK_STACK_SIZE, LOGGING_TASK_PRIORITY, LOGGING_QUEUE_LENGTH);
 
     vTaskStartScheduler();
-    for (;;)
-        ;
+
+    while(1) {
+    }
+ return 0 ;
+}
+
+void print_string(const char *string)
+{
+    PRINTF(string);
 }
 
 void *pvPortCalloc(size_t xNum, size_t xSize)
