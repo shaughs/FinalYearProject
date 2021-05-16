@@ -85,7 +85,7 @@ static char pcUpdateBuffer[shadowBUFFER_LENGTH];
 static ShadowClientHandle_t xClientHandle;
 QueueHandle_t jsonDeltaQueue = NULL;
 
-uint8_t CAN_Tx_Frame(uint16_t ID, uint8_t *dataFrame, uint8_t msgBuffIndex);
+uint8_t Tx_Frame(uint16_t ID, uint8_t *dataFrame, uint8_t msgBuffIndex);
 uint8_t rxBuffer[8];
 static volatile uint8_t CANFrameReceived = 0;
 flexcan_frame_t txFrame, rxFrame;
@@ -96,7 +96,7 @@ uint8_t speed_Request[8] = {0x2,0x1,0x0D,0x55,0x55,0x55,0x55,0x55};
 uint8_t MAF_Request[8] = {0x2,0x1,0x10,0x55,0x55,0x55,0x55,0x55};
 uint8_t engineLoad_Request[8] = {0x2,0x1,0x04,0x55,0x55,0x55,0x55,0x55};
 
-Can_addresses[5] = {coolantTemp_Request, RPM_Request, speed_Request, MAF_Request, engineLoad_Request};
+CAN_dataFrame[5] = {coolantTemp_Request, RPM_Request, speed_Request, MAF_Request, engineLoad_Request};
 
 static uint8_t coolantTemp;
 static uint16_t rpm;
@@ -140,8 +140,6 @@ void CAN0_CAN_ORED_MB_IRQHANDLER(void) {
 		FLEXCAN_ClearMbStatusFlags(CAN0, 0x01);
 		FLEXCAN_ReadRxMb(CAN0, 0 , &rxFrame);
 
-		printf("\rCAN Rx Frame Received, ID: 0x%08x\n\r", (rxFrame.id & 0x1FFC0000)>>18);
-
 		rxBuffer[0] = rxFrame.dataByte0;
 		rxBuffer[1] = rxFrame.dataByte1;
 		rxBuffer[2] = rxFrame.dataByte2;
@@ -171,7 +169,7 @@ static void canbus_task(void *pvParameters) {
 				vTaskResume(awsHandle);
 			}
 
-			CAN_Tx_Frame(0x7DF, Can_addresses[i], 1);
+			Tx_Frame(0x7DF, CAN_dataFrame[i], 1);
 
 			while(CANFrameReceived == 0);
 			CANFrameReceived = 0;
@@ -219,7 +217,7 @@ static void canbus_task(void *pvParameters) {
 	}
 }
 
-uint8_t CAN_Tx_Frame(uint16_t ID, uint8_t *dataFrame, uint8_t msgBuffIndex) {
+uint8_t Tx_Frame(uint16_t ID, uint8_t *dataFrame, uint8_t msgBuffIndex) {
 	flexcan_frame_t txFrame;
 	txFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
     txFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
@@ -552,7 +550,6 @@ void processShadowDeltaJSON(char *json, uint32_t jsonLength)
                     parsedtempState = parsedValue;
                 }
             }
-#if defined(BOARD_ACCEL_FXOS) || defined(BOARD_ACCEL_MMA)
             else if (strstr(key, "rpmUpdate"))
             {
                 /* found "updateRpm" keyword, parse value of next token */
@@ -586,7 +583,6 @@ void processShadowDeltaJSON(char *json, uint32_t jsonLength)
                     parsedloadState = parsedValue;
                 }
             }
-#endif
             i++;
         }
     }
